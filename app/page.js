@@ -111,21 +111,22 @@ export default async function HomePage() {
         </div>
       </section>
  
-      {/* ABOUT */}
-      <section className="section" id="tentang" style={{ background: 'var(--ink)', color: '#fff' }}>
+      {/* ABOUT (teaser — halaman lengkap di /tentang) */}
+      <section className="section" style={{ background: 'var(--ink)', color: '#fff' }}>
         <div className="wrap" style={{ maxWidth: 720 }}>
           <span className="eyebrow" style={{ color: 'rgba(255,255,255,.5)' }}>Tentang Kami</span>
           <h2 style={{ color: '#fff', marginBottom: 20 }}>GUDARA.</h2>
-          <p style={{ color: 'rgba(255,255,255,.75)', fontSize: 16, lineHeight: 1.7 }}>
+          <p style={{ color: 'rgba(255,255,255,.75)', fontSize: 16, lineHeight: 1.7, marginBottom: 24 }}>
             GUDARA adalah brand sportswear asal Indonesia yang fokus pada jersey dan apparel
             dry-fit — dari koleksi daily &amp; casual, sport authentic, hingga custom kits untuk
-            tim. Setiap produk dibuat dengan material yang menyerap keringat dan sirkulasi udara
-            maksimal, cocok untuk aktivitas harian maupun olahraga.
+            tim, dibuat dengan material yang menyerap keringat dan sirkulasi udara maksimal.
           </p>
+          <Link href="/tentang" className="btn btn--outline" style={{ borderColor: '#fff', color: '#fff' }}>
+            Selengkapnya &rarr;
+          </Link>
         </div>
       </section>
  
     </>
   );
 }
- 
