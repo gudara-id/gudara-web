@@ -5,11 +5,10 @@ import { getProductRow } from '@/lib/products';
 import ProductGrid from '@/components/ProductGrid';
  
 export default async function HomePage() {
-  const [rowDaily, rowSport, rowBasic] = await Promise.all([
-    getProductRow('daily', 4),
-    getProductRow('sport', 4),
-    getProductRow('basic', 2),
-  ]);
+  // Flat catalog feed — no category param means all categories mixed together,
+  // shown as a single dense grid right below the hero (reference-site pattern:
+  // no "Kategori" intermediary, straight into the product wall).
+  const allProducts = await getProductRow(null, 24);
  
   return (
     <>
@@ -30,38 +29,17 @@ export default async function HomePage() {
         </div>
       </section>
  
-      {/* KATEGORI */}
-      <section className="section" id="kategori">
-        <div className="wrap section-head">
-          <h2>Kategori Produk</h2>
-        </div>
-        <div className="cat-grid">
-          <Link className="cat-card" href="/etalase?kat=daily">
-            <img src="https://gudara.id/waffle-stripe-tee-black.jpg" alt="Daily & Casual" />
-            <div className="cat-card__label"><h3>Daily &amp; Casual</h3><p>Nyaman untuk aktivitas harian</p></div>
-          </Link>
-          <Link className="cat-card" href="/etalase?kat=sport">
-            <img src="https://gudara.id/army-running-black.jpg" alt="Sport Authentic" />
-            <div className="cat-card__label"><h3>Sport Authentic</h3><p>Sirkulasi udara maksimal</p></div>
-          </Link>
-          <Link className="cat-card" href="/etalase?kat=basic">
-            <img src="https://gudara.id/basic-tee-warna-hitam.jpg" alt="Basic" />
-            <div className="cat-card__label"><h3>Basic</h3><p>Esensial, minimalis, premium</p></div>
-          </Link>
-        </div>
-      </section>
- 
-      {/* DAILY */}
+      {/* ALL PRODUCTS — flat, uncategorized, dense grid */}
       <section className="section section--tight">
         <div className="wrap">
           <div className="section-head">
             <div>
-              <span className="eyebrow">Discover</span>
-              <h2>Daily &amp; Casual</h2>
+              <span className="eyebrow">Shop All</span>
+              <h2>Semua Produk</h2>
             </div>
-            <Link className="see-all" href="/etalase?kat=daily">Lihat Semua &rarr;</Link>
+            <Link className="see-all" href="/etalase">Lihat Semua &rarr;</Link>
           </div>
-          <ProductGrid products={rowDaily} />
+          <ProductGrid products={allProducts} className="p-grid--dense" />
         </div>
       </section>
  
@@ -76,20 +54,6 @@ export default async function HomePage() {
           <h2>Custom Kits<br />Untuk Timmu</h2>
           <p>Koleksi custom Gudara hadir dengan beragam desain serta pemilihan bahan terbaik. Premium materials, authentic details.</p>
           <Link href="/custom" className="btn btn--accent" style={{ alignSelf: 'flex-start' }}>Mulai Project Custom</Link>
-        </div>
-      </section>
- 
-      {/* SPORT */}
-      <section className="section section--tight">
-        <div className="wrap">
-          <div className="section-head">
-            <div>
-              <span className="eyebrow">Now Live</span>
-              <h2>Sport Authentic</h2>
-            </div>
-            <Link className="see-all" href="/etalase?kat=sport">Lihat Semua &rarr;</Link>
-          </div>
-          <ProductGrid products={rowSport} />
         </div>
       </section>
  
@@ -114,20 +78,6 @@ export default async function HomePage() {
         </div>
       </section>
  
-      {/* BASIC */}
-      <section className="section section--tight">
-        <div className="wrap">
-          <div className="section-head">
-            <div>
-              <span className="eyebrow">Elevated Basics</span>
-              <h2>Basic</h2>
-            </div>
-            <Link className="see-all" href="/etalase?kat=basic">Lihat Semua &rarr;</Link>
-          </div>
-          <ProductGrid products={rowBasic} />
-        </div>
-      </section>
- 
       {/* ABOUT */}
       <section className="section" id="tentang" style={{ background: 'var(--ink)', color: '#fff' }}>
         <div className="wrap" style={{ maxWidth: 720 }}>
@@ -145,4 +95,3 @@ export default async function HomePage() {
     </>
   );
 }
- 
