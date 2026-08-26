@@ -7,6 +7,7 @@ import { useCart } from '@/lib/cart-context';
 export default function Header() {
   const { cartCount } = useCart();
   const [megaOpen, setMegaOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
@@ -24,6 +25,16 @@ export default function Header() {
       </div>
       <header className="site" onMouseLeave={() => setMegaOpen(false)}>
         <div className="wrap nav-row">
+          <button
+            className="menu-btn"
+            aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <Link href="/" className="logo">GUDARA</Link>
           <nav className="nav-links">
             <div className="nav-item" onMouseEnter={() => setMegaOpen(true)}>
@@ -70,6 +81,22 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      {/* Mobile nav drawer */}
+      <div className={`overlay${mobileOpen ? ' open' : ''}`} onClick={() => setMobileOpen(false)} />
+      <div className={`mobile-drawer${mobileOpen ? ' open' : ''}`}>
+        <div className="mobile-drawer__head">
+          <span className="logo">GUDARA</span>
+          <button aria-label="Tutup menu" onClick={() => setMobileOpen(false)}>&times;</button>
+        </div>
+        <nav className="mobile-drawer__links">
+          <Link href="/etalase?kat=daily" onClick={() => setMobileOpen(false)}>Daily &amp; Casual</Link>
+          <Link href="/etalase?kat=sport" onClick={() => setMobileOpen(false)}>Sport Authentic</Link>
+          <Link href="/custom" onClick={() => setMobileOpen(false)}>Custom Kits</Link>
+          <Link href="/#tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
+          <Link href="/keranjang" onClick={() => setMobileOpen(false)}>Keranjang ({cartCount})</Link>
+        </nav>
+      </div>
     </>
   );
 }
