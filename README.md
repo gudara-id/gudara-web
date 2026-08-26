@@ -39,3 +39,5 @@ dari Supabase, bukan dari `products.js` statis.
   Bisa ditambahkan nanti sebagai fitur baru kalau dibutuhkan.
 - Checkout masih pakai alert placeholder yang sama seperti prototype — koneksi
   ke Midtrans dipasang di Tahap 3.
+
+  
