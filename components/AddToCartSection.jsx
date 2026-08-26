@@ -23,21 +23,13 @@ export default function AddToCartSection({ product }) {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
+      <div className="pdp-block">
         <div className="eyebrow" style={{ marginBottom: 8 }}>Ukuran</div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="pdp-sizes">
           {product.sizes.map((s) => (
             <button
               key={s}
-              className="size-btn"
-              style={{
-                width: 44,
-                height: 44,
-                border: '1px solid var(--line)',
-                fontFamily: 'var(--mono)',
-                background: selectedSize === s ? 'var(--ink)' : '',
-                color: selectedSize === s ? '#fff' : '',
-              }}
+              className={`pdp-size-btn${selectedSize === s ? ' is-active' : ''}`}
               onClick={() => setSelectedSize(s)}
             >
               {s}
