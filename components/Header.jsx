@@ -4,6 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 
+const MARQUEE_ITEMS = ['GUDARA', 'CUSTOM JERSEY', 'MOVE FASTER', 'DRY FIT PREMIUM'];
+// Diulang banyak kali (bukan cuma 2x) supaya total lebar track selalu lebih
+// besar dari lebar layar manapun (termasuk monitor lebar) — kalau tidak,
+// bagian setelah teks habis akan terlihat kosong sebelum animasi mengulang.
+const MARQUEE_REPEAT = 8;
+
 export default function Header() {
   const { cartCount } = useCart();
   const [megaOpen, setMegaOpen] = useState(false);
@@ -13,14 +19,11 @@ export default function Header() {
     <>
       <div className="marquee">
         <div className="marquee__track">
-          <span>GUDARA</span>
-          <span>CUSTOM JERSEY</span>
-          <span>MOVE FASTER</span>
-          <span>DRY FIT PREMIUM</span>
-          <span>GUDARA</span>
-          <span>CUSTOM JERSEY</span>
-          <span>MOVE FASTER</span>
-          <span>DRY FIT PREMIUM</span>
+          {Array.from({ length: MARQUEE_REPEAT }).map((_, rep) =>
+            MARQUEE_ITEMS.map((item, i) => (
+              <span key={`${rep}-${i}`}>{item}</span>
+            ))
+          )}
         </div>
       </div>
       <header className="site" onMouseLeave={() => setMegaOpen(false)}>
