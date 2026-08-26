@@ -25,17 +25,19 @@ export default function Header() {
       </div>
       <header className="site" onMouseLeave={() => setMegaOpen(false)}>
         <div className="wrap nav-row">
-          <button
-            className="menu-btn"
-            aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((v) => !v)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-          <Link href="/" className="logo">GUDARA</Link>
+          <div className="nav-left">
+            <button
+              className="menu-btn"
+              aria-label={mobileOpen ? 'Tutup menu' : 'Buka menu'}
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((v) => !v)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            <Link href="/" className="logo">GUDARA</Link>
+          </div>
           <nav className="nav-links">
             <div className="nav-item" onMouseEnter={() => setMegaOpen(true)}>
               <Link href="/etalase">Shop</Link>
