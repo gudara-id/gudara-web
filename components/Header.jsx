@@ -46,9 +46,15 @@ export default function Header() {
               <Link href="/etalase">Shop</Link>
             </div>
             <Link href="/custom" onMouseEnter={() => setMegaOpen(false)}>Custom Kits</Link>
-            <Link href="/#tentang" onMouseEnter={() => setMegaOpen(false)}>Tentang Kami</Link>
+            <Link href="/tentang" onMouseEnter={() => setMegaOpen(false)}>Tentang Kami</Link>
           </nav>
           <div className="nav-actions">
+            <Link className="icon-btn" href="/etalase" aria-label="Cari produk">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </Link>
             <Link className="icon-btn" href="/keranjang">
               Keranjang <span className="cart-count">{cartCount}</span>
             </Link>
@@ -96,7 +102,7 @@ export default function Header() {
         <nav className="mobile-drawer__links">
           <Link href="/etalase" onClick={() => setMobileOpen(false)}>Shop</Link>
           <Link href="/custom" onClick={() => setMobileOpen(false)}>Custom Kits</Link>
-          <Link href="/#tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
+          <Link href="/tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
           <Link href="/keranjang" onClick={() => setMobileOpen(false)}>Keranjang ({cartCount})</Link>
         </nav>
       </div>
