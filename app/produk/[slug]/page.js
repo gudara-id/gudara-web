@@ -2,11 +2,12 @@ export const dynamic = 'force-dynamic';
  
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getProductBySlug } from '@/lib/products';
-import { formatRp, titleCase } from '@/lib/format';
+import { getProductBySlug, getRelatedProducts } from '@/lib/products';
+import { formatRp, titleCase, toFeatureList } from '@/lib/format';
 import AddToCartSection from '@/components/AddToCartSection';
 import ProductGallery from '@/components/ProductGallery';
 import ProductAccordion from '@/components/ProductAccordion';
+import ProductGrid from '@/components/ProductGrid';
  
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -20,10 +21,21 @@ export default async function ProductPage({ params }) {
  
   if (!product) notFound();
  
+  const related = await getRelatedProducts(product.kat, product.slug, 4);
+  const featureList = toFeatureList(product.materialSpec);
+ 
   const accordionSections = [
     {
       title: 'Spesifikasi Material',
-      body: <p>{product.materialSpec || 'Detail material belum tersedia untuk produk ini.'}</p>,
+      body: featureList ? (
+        <ul className="pdp-feature-list">
+          {featureList.map((f, i) => (
+            <li key={i}>{f}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>{product.materialSpec || 'Detail material belum tersedia untuk produk ini.'}</p>
+      ),
     },
     {
       title: 'Pengiriman & Retur',
@@ -55,7 +67,10 @@ export default async function ProductPage({ params }) {
  
         <div className="pdp-info">
           <div className="pdp-head">
-            <h1 className="pdp-title">{product.name}</h1>
+            <div>
+              <span className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>{titleCase(product.kat)}</span>
+              <h1 className="pdp-title">{product.name}</h1>
+            </div>
             <div className="pdp-price-row">
               <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
               {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
@@ -64,10 +79,24 @@ export default async function ProductPage({ params }) {
           </div>
  
           <AddToCartSection product={product} />
+          <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
  
           <ProductAccordion sections={accordionSections} />
         </div>
       </div>
+ 
+      {related.length > 0 && (
+        <section className="pdp-related">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Kamu Mungkin Juga Suka</span>
+              <h2>Produk Terkait</h2>
+            </div>
+            <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
+          </div>
+          <ProductGrid products={related} />
+        </section>
+      )}
  
       <div className="pdp-sticky-cta">
         <div className="pdp-sticky-cta__info">
