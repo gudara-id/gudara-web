@@ -12,7 +12,10 @@ export default function ProductCard({ product }) {
       <Link href={`/produk/${product.slug}`}>
         <div className="p-card__img">
           {product.off && <span className="p-card__badge">{product.off}</span>}
-          <img src={product.image} alt={product.name} loading="lazy" />
+          <img className="p-card__img-main" src={product.image} alt={product.name} loading="lazy" />
+          {product.hoverImage && (
+            <img className="p-card__img-hover" src={product.hoverImage} alt="" loading="lazy" />
+          )}
         </div>
       </Link>
       <div className="p-card__body">
