@@ -108,14 +108,15 @@ header.site{
 .nav-links{
   position:absolute;left:50%;top:50%;
   transform:translate(-50%,-50%);
-  display:flex;gap:32px;
+  display:flex;align-items:center;gap:32px;
   font-size:13px;
   letter-spacing:0.04em;
   text-transform:uppercase;
   font-weight:600;
 }
-.nav-links a{position:relative;padding:4px 0;}
+.nav-links a{position:relative;padding:4px 0;display:inline-flex;align-items:center;}
 .nav-links a:hover{color:var(--accent);}
+.nav-item{display:flex;align-items:center;}
 .nav-actions{display:flex;align-items:center;gap:20px;}
 .icon-btn{position:relative;font-size:13px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;display:flex;align-items:center;gap:6px;}
 .cart-count{
