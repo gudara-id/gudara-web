@@ -8,7 +8,12 @@ export default async function HomePage() {
   // Flat catalog feed — no category param means all categories mixed together,
   // shown as a single dense grid right below the hero (reference-site pattern:
   // no "Kategori" intermediary, straight into the product wall).
-  const allProducts = await getProductRow(null, 24);
+  const [allProducts, rowDaily, rowSport, rowBasic] = await Promise.all([
+    getProductRow(null, 24),
+    getProductRow('daily', 4),
+    getProductRow('sport', 4),
+    getProductRow('basic', 4),
+  ]);
  
   return (
     <>
@@ -43,17 +48,45 @@ export default async function HomePage() {
         </div>
       </section>
  
-      {/* PROMO SPLIT: CUSTOM KITS */}
-      <section className="promo">
-        <div
-          className="promo__media"
-          style={{ backgroundImage: "url('https://gudara.id/costume gudara by penilaian toko shoope.jpg')" }}
-        />
-        <div className="promo__info">
-          <span className="eyebrow" style={{ color: 'rgba(255,255,255,.6)' }}>Pride of the Nation</span>
-          <h2>Custom Kits<br />Untuk Timmu</h2>
-          <p>Koleksi custom Gudara hadir dengan beragam desain serta pemilihan bahan terbaik. Premium materials, authentic details.</p>
-          <Link href="/custom" className="btn btn--accent" style={{ alignSelf: 'flex-start' }}>Mulai Project Custom</Link>
+      {/* DAILY & CASUAL */}
+      <section className="section section--tight">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Discover</span>
+              <h2>Daily &amp; Casual</h2>
+            </div>
+            <Link className="see-all" href="/etalase?kat=daily">Lihat Semua &rarr;</Link>
+          </div>
+          <ProductGrid products={rowDaily} />
+        </div>
+      </section>
+ 
+      {/* SPORT AUTHENTIC */}
+      <section className="section section--tight">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Now Live</span>
+              <h2>Sport Authentic</h2>
+            </div>
+            <Link className="see-all" href="/etalase?kat=sport">Lihat Semua &rarr;</Link>
+          </div>
+          <ProductGrid products={rowSport} />
+        </div>
+      </section>
+ 
+      {/* BASIC */}
+      <section className="section section--tight">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Elevated Basics</span>
+              <h2>Basic</h2>
+            </div>
+            <Link className="see-all" href="/etalase?kat=basic">Lihat Semua &rarr;</Link>
+          </div>
+          <ProductGrid products={rowBasic} />
         </div>
       </section>
  
@@ -95,3 +128,4 @@ export default async function HomePage() {
     </>
   );
 }
+ 
