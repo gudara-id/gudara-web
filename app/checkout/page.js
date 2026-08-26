@@ -164,7 +164,7 @@ export default function CheckoutPage() {
             ))}
 
             {errorMsg && (
-              <p style={{ fontSize: 13, color: 'var(--accent)', marginTop: 12 }}>{errorMsg}</p>
+              <p style={{ fontSize: 13, color: '#C6302B', marginTop: 12 }}>{errorMsg}</p>
             )}
           </div>
 
