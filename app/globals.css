@@ -435,22 +435,35 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .pdp-gallery__thumb.is-active{opacity:1;border-color:var(--ink);}
  
 .pdp-info{padding-top:4px;}
-.pdp-title{
-  font-size:clamp(28px,4vw,44px);
-  margin:8px 0 16px;
+.pdp-head{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:16px;margin-bottom:20px;flex-wrap:wrap;
 }
-.pdp-price-row{display:flex;gap:10px;align-items:baseline;margin-bottom:24px;flex-wrap:wrap;}
+.pdp-title{
+  font-size:clamp(24px,3vw,36px);
+  margin:0;
+}
+.pdp-price-row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;flex-shrink:0;}
 .pdp-badge{
   background:var(--accent);color:#fff;
   font-family:var(--mono);font-size:11px;font-weight:700;
   padding:3px 8px;
 }
 .pdp-block{margin-bottom:24px;}
+.pdp-block__head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.pdp-size-guide{
+  font-family:var(--mono);font-size:11px;letter-spacing:0.04em;text-transform:uppercase;
+  text-decoration:underline;color:var(--ink-soft);
+}
 .pdp-swatches{display:flex;gap:8px;flex-wrap:wrap;}
 .pdp-swatch{
   padding:8px 16px;border:1px solid var(--line);
   font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.03em;
+  background:var(--white);color:var(--ink);
+  transition:all .15s;
 }
+.pdp-swatch:hover{border-color:var(--ink-soft);}
+.pdp-swatch.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
 .pdp-sizes{display:flex;gap:8px;flex-wrap:wrap;}
 .pdp-size-btn{
   min-width:44px;height:44px;padding:0 12px;
@@ -460,6 +473,14 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 }
 .pdp-size-btn:hover{border-color:var(--ink);}
 .pdp-size-btn.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
+ 
+.pdp-info-rows{margin-top:20px;border-top:1px solid var(--line);}
+.pdp-info-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 2px;border-bottom:1px solid var(--line);
+  font-size:13px;color:var(--ink-soft);
+}
+.pdp-info-row__chevron{font-size:18px;line-height:1;color:var(--ink-soft);}
  
 .pdp-accordion{margin-top:32px;border-top:1px solid var(--line);}
 .pdp-accordion__item{border-bottom:1px solid var(--line);}
