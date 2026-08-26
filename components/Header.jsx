@@ -20,10 +20,6 @@ export default function Header() {
           <span>CUSTOM JERSEY</span>
           <span>MOVE FASTER</span>
           <span>DRY FIT PREMIUM</span>
-          <span>GUDARA</span>
-          <span>CUSTOM JERSEY</span>
-          <span>MOVE FASTER</span>
-          <span>DRY FIT PREMIUM</span>
         </div>
       </div>
       <header className="site" onMouseLeave={() => setMegaOpen(false)}>
