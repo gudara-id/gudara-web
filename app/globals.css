@@ -1,25 +1,26 @@
 /* ============================================
    GUDARA — Design tokens
-   Palette drawn from the brand's own product language
-   (Blaze, Terrain, Vortex, Nature) rather than a generic default.
+   Full monochrome palette (black / white / grey),
+   matching the high-contrast editorial-luxury streetwear
+   reference (Represent Clo). No hue accents.
    ============================================ */
 :root{
-  --bg: #F5F4EF;
-  --ink: #16181B;
-  --ink-soft: #55585E;
-  --surface: #EAE7DF;
+  --bg: #FFFFFF;
+  --ink: #0A0A0A;
+  --ink-soft: #6B6B6B;
+  --surface: #F1F1F1;
   --white: #FFFFFF;
-  --accent: #E4572E;       /* Blaze — primary CTA / sale */
+  --accent: #0A0A0A;       /* was Blaze orange — now same as ink, no colour accent */
   --accent-ink: #FFFFFF;
-  --accent-2: #1F4E8C;     /* Vortex — secondary / links */
-  --line: #D9D5CB;
-  --success: #2D6A4F;      /* Terrain green — badges */
+  --accent-2: #0A0A0A;     /* was Vortex blue — now same as ink */
+  --line: #E2E2E2;
+  --success: #0A0A0A;      /* was Terrain green — badges now monochrome */
  
   --display: 'Anton', Impact, sans-serif;
   --body: 'Inter', -apple-system, sans-serif;
   --mono: 'JetBrains Mono', 'Space Mono', monospace;
  
-  --radius: 2px;
+  --radius: 0px;
   --container: 1280px;
 }
  
@@ -129,7 +130,7 @@ header.site{
 .mega-col h4{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px;}
 .mega-col a{display:block;padding:6px 0;font-size:14px;}
 .mega-col a:hover{color:var(--accent);}
-
+ 
 /* ---- Mobile menu button + drawer ---- */
 .menu-btn{
   display:none;
@@ -199,11 +200,11 @@ header.site{
   border-radius:var(--radius);
 }
 .btn--accent{background:var(--accent);color:#fff;}
-.btn--accent:hover{background:#c8471f;}
+.btn--accent:hover{background:#2b2b2b;}
 .btn--outline{border:1px solid #fff;color:#fff;}
 .btn--outline:hover{background:#fff;color:var(--ink);}
 .btn--dark{background:var(--ink);color:#fff;}
-.btn--dark:hover{background:#000;}
+.btn--dark:hover{background:#2b2b2b;}
 .hero__ctas{display:flex;gap:14px;flex-wrap:wrap;}
  
 /* ---- Section header ---- */
@@ -487,3 +488,4 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .pdp-sticky-cta__name{font-size:12px;color:var(--ink-soft);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pdp-sticky-cta .btn{padding:12px 20px;}
 }
+ 
