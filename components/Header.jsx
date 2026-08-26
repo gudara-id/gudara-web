@@ -38,9 +38,8 @@ export default function Header() {
           <Link href="/" className="logo">GUDARA</Link>
           <nav className="nav-links">
             <div className="nav-item" onMouseEnter={() => setMegaOpen(true)}>
-              <Link href="/etalase?kat=daily">Daily &amp; Casual</Link>
+              <Link href="/etalase">Shop</Link>
             </div>
-            <Link href="/etalase?kat=sport" onMouseEnter={() => setMegaOpen(false)}>Sport Authentic</Link>
             <Link href="/custom" onMouseEnter={() => setMegaOpen(false)}>Custom Kits</Link>
             <Link href="/#tentang" onMouseEnter={() => setMegaOpen(false)}>Tentang Kami</Link>
           </nav>
@@ -90,8 +89,7 @@ export default function Header() {
           <button aria-label="Tutup menu" onClick={() => setMobileOpen(false)}>&times;</button>
         </div>
         <nav className="mobile-drawer__links">
-          <Link href="/etalase?kat=daily" onClick={() => setMobileOpen(false)}>Daily &amp; Casual</Link>
-          <Link href="/etalase?kat=sport" onClick={() => setMobileOpen(false)}>Sport Authentic</Link>
+          <Link href="/etalase" onClick={() => setMobileOpen(false)}>Shop</Link>
           <Link href="/custom" onClick={() => setMobileOpen(false)}>Custom Kits</Link>
           <Link href="/#tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
           <Link href="/keranjang" onClick={() => setMobileOpen(false)}>Keranjang ({cartCount})</Link>
