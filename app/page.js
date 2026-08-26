@@ -17,7 +17,7 @@ export default async function HomePage() {
       <section className="hero">
         <div
           className="hero__bg"
-          style={{ backgroundImage: "url('https://gudara.id/cover-web-1.jpg')" }}
+          style={{ backgroundImage: "url('/hero-1.jpg')" }}
         />
         <div className="wrap hero__content">
           <span className="eyebrow" style={{ color: '#fff' }}>Move Faster Collection</span>
@@ -145,3 +145,4 @@ export default async function HomePage() {
     </>
   );
 }
+ 
