@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-
+ 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProductBySlug } from '@/lib/products';
@@ -7,19 +7,19 @@ import { formatRp, titleCase } from '@/lib/format';
 import AddToCartSection from '@/components/AddToCartSection';
 import ProductGallery from '@/components/ProductGallery';
 import ProductAccordion from '@/components/ProductAccordion';
-
+ 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   return { title: product ? `${product.name} | GUDARA` : 'Produk | GUDARA' };
 }
-
+ 
 export default async function ProductPage({ params }) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-
+ 
   if (!product) notFound();
-
+ 
   const accordionSections = [
     {
       title: 'Spesifikasi Material',
@@ -39,7 +39,7 @@ export default async function ProductPage({ params }) {
       body: <p>Cuci dengan air dingin, jangan disikat pada bagian sablon/emboss, jemur terbalik di tempat teduh.</p>,
     },
   ];
-
+ 
   return (
     <section className="pdp wrap">
       <nav className="breadcrumb">
@@ -49,36 +49,26 @@ export default async function ProductPage({ params }) {
         <span>/</span>
         <span className="breadcrumb__current">{product.name}</span>
       </nav>
-
+ 
       <div className="pdp-layout">
         <ProductGallery images={product.images} name={product.name} />
-
+ 
         <div className="pdp-info">
-          <span className="eyebrow">GUDARA — {titleCase(product.kat)}</span>
-          <h1 className="pdp-title">{product.name}</h1>
-          <div className="pdp-price-row">
-            <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
-            {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
-            {product.off && <span className="pdp-badge">{product.off}</span>}
-          </div>
-
-          {product.colors.length > 0 && (
-            <div className="pdp-block">
-              <div className="eyebrow" style={{ marginBottom: 8 }}>Varian</div>
-              <div className="pdp-swatches">
-                {product.colors.map((c) => (
-                  <span key={c} className="pdp-swatch">{c}</span>
-                ))}
-              </div>
+          <div className="pdp-head">
+            <h1 className="pdp-title">{product.name}</h1>
+            <div className="pdp-price-row">
+              <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
+              {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
+              {product.off && <span className="pdp-badge">{product.off}</span>}
             </div>
-          )}
-
+          </div>
+ 
           <AddToCartSection product={product} />
-
+ 
           <ProductAccordion sections={accordionSections} />
         </div>
       </div>
-
+ 
       <div className="pdp-sticky-cta">
         <div className="pdp-sticky-cta__info">
           <span className="pdp-sticky-cta__name">{product.name}</span>
