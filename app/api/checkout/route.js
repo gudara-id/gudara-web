@@ -1,15 +1,7 @@
 // app/api/checkout/route.js
-// Terima data checkout dari front-end → simpan order (status: pending_payment)
-// di Supabase → minta Midtrans buatkan Snap token → kirim token itu balik ke front-end.
-//
-// Environment variables yang dibutuhkan (isi di .env.local):
-//   SUPABASE_URL=
-//   SUPABASE_SERVICE_ROLE_KEY=        (JANGAN dipakai di client, hanya di server)
-//   MIDTRANS_SERVER_KEY=
-//   MIDTRANS_IS_PRODUCTION=false      ('true' kalau sudah live)
-
 import { createClient } from '@supabase/supabase-js';
 import midtransClient from 'midtrans-client';
+import { getShippingRates } from '@/lib/biteship';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -21,8 +13,8 @@ const snap = new midtransClient.Snap({
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { items, recipient, paymentMethod } = body;
-    // items dari cart-context: [{ id, name, price, image, variant, qty }]
+    const { items, recipient, paymentMethod, shipping } = body;
+    // shipping dari client: { courier_company, courier_type } — hasil pilihan user dari /api/shipping/rates
 
     if (!items?.length) {
       return Response.json({ error: 'Keranjang kosong' }, { status: 400 });
@@ -30,13 +22,15 @@ export async function POST(req) {
     if (!recipient?.name || !recipient?.phone || !recipient?.address || !recipient?.city || !recipient?.postalCode) {
       return Response.json({ error: 'Data alamat belum lengkap' }, { status: 400 });
     }
+    if (!shipping?.courier_company || !shipping?.courier_type) {
+      return Response.json({ error: 'Pilih kurir pengiriman dulu' }, { status: 400 });
+    }
 
-    // 1. Ambil harga ASLI dari database — jangan percaya harga yang dikirim
-    //    dari client, supaya tidak bisa dimanipulasi lewat devtools.
+    // 1. Ambil harga & berat ASLI dari database
     const productIds = [...new Set(items.map((i) => i.id))];
     const { data: products, error: productsError } = await supabase
       .from('products')
-      .select('id, name, price')
+      .select('id, name, price, weight_grams')
       .in('id', productIds);
     if (productsError) throw productsError;
 
@@ -50,22 +44,45 @@ export async function POST(req) {
       const real = priceMap[i.id];
       return {
         product_id: i.id,
-        variant_id: null, // prototype belum menyimpan variant_id per varian, cuma label ukuran
+        variant_id: null,
         product_name: real.name,
         variant_label: i.variant || null,
         unit_price: real.price,
         qty: i.qty,
         line_total: real.price * i.qty,
+        weight_grams: real.weight_grams || 250,
       };
     });
 
     const subtotal = orderItems.reduce((sum, i) => sum + i.line_total, 0);
-    const shippingCost = 0; // ganti dengan hasil hitung ongkir (RajaOngkir/Biteship) kalau sudah siap
+
+    // 2. Hitung ulang ongkir di server, cocokkan dengan kurir yang dipilih user
+    const biteshipItems = orderItems.map((i) => ({
+      name: i.product_name,
+      value: i.unit_price,
+      weight: i.weight_grams,
+      quantity: i.qty,
+    }));
+
+    const ratesResult = await getShippingRates({
+      destinationPostalCode: recipient.postalCode,
+      couriers: shipping.courier_company,
+      items: biteshipItems,
+    });
+
+    const matchedRate = ratesResult.pricing.find(
+      (p) => p.company === shipping.courier_company && p.type === shipping.courier_type
+    );
+    if (!matchedRate) {
+      return Response.json({ error: 'Opsi kurir tidak lagi tersedia, silakan cek ongkir ulang' }, { status: 400 });
+    }
+
+    const shippingCost = matchedRate.price;
     const total = subtotal + shippingCost;
 
     const orderNumber = `GDR-${Date.now()}`;
 
-    // 2. Simpan order dengan status pending_payment
+    // 3. Simpan order dengan status pending_payment
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -81,18 +98,21 @@ export async function POST(req) {
         shipping_postal: recipient.postalCode,
         payment_method: paymentMethod,
         midtrans_order_id: orderNumber,
+        courier_company: shipping.courier_company,
+        courier_type: shipping.courier_type,
+        courier_service_name: matchedRate.courier_service_name,
       })
       .select()
       .single();
     if (orderError) throw orderError;
 
-    // 3. Simpan item-item order
+    // 4. Simpan item-item order
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
     if (itemsError) throw itemsError;
 
-    // 4. Minta Midtrans buatkan Snap token
+    // 5. Minta Midtrans buatkan Snap token
     const transaction = await snap.createTransaction({
       transaction_details: {
         order_id: orderNumber,
@@ -102,15 +122,22 @@ export async function POST(req) {
         first_name: recipient.name,
         phone: recipient.phone,
       },
-      item_details: orderItems.map((i) => ({
-        id: i.product_id,
-        price: i.unit_price,
-        quantity: i.qty,
-        name: i.product_name.substring(0, 50), // Midtrans batasi panjang nama item
-      })),
+      item_details: [
+        ...orderItems.map((i) => ({
+          id: i.product_id,
+          price: i.unit_price,
+          quantity: i.qty,
+          name: i.product_name.substring(0, 50),
+        })),
+        {
+          id: 'ongkir',
+          price: shippingCost,
+          quantity: 1,
+          name: `Ongkir - ${shipping.courier_company.toUpperCase()} ${matchedRate.courier_service_name}`.substring(0, 50),
+        },
+      ],
     });
 
-    // 5. Kirim token ke front-end untuk membuka Snap popup
     return Response.json({
       orderNumber,
       snapToken: transaction.token,
