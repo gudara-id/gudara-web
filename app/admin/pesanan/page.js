@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { formatRp } from '@/lib/format';
+import AdminLogoutButton from '@/components/AdminLogoutButton';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -30,7 +31,10 @@ export default async function AdminOrdersPage({ searchParams }) {
 
   return (
     <section className="wrap" style={{ padding: '48px 0 96px' }}>
-      <h1 style={{ marginBottom: 24 }}>Pesanan</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h1>Pesanan</h1>
+        <AdminLogoutButton />
+      </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
         {['paid', 'processing', 'shipped', 'completed', 'pending_payment', 'all'].map((s) => (
