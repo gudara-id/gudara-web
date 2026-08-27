@@ -4,10 +4,11 @@ import { createShippingOrder } from '@/lib/biteship';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function POST(req, { params }) {
+  const { id } = await params;
   const { data: order, error } = await supabase
     .from('orders')
     .select('*, order_items(*)')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !order) {
@@ -40,7 +41,7 @@ export async function POST(req, { params }) {
         waybill_id: shippingOrder.courier.waybill_id,
         shipping_status: shippingOrder.status,
       })
-      .eq('id', params.id);
+      .eq('id', id);
 
     return Response.json({ success: true });
   } catch (err) {

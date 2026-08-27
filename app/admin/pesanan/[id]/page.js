@@ -7,10 +7,11 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrderDetailPage({ params }) {
+  const { id } = await params;
   const { data: order } = await supabase
     .from('orders')
     .select('*, order_items(*)')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!order) {

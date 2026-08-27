@@ -1,0 +1,77 @@
+diff --git a/app/admin/pesanan/[id]/page.js b/app/admin/pesanan/[id]/page.js
+index 27033c8..47a3b8f 100644
+--- a/app/admin/pesanan/[id]/page.js
++++ b/app/admin/pesanan/[id]/page.js
+@@ -7,10 +7,11 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
+ export const dynamic = 'force-dynamic';
+ 
+ export default async function AdminOrderDetailPage({ params }) {
++  const { id } = await params;
+   const { data: order } = await supabase
+     .from('orders')
+     .select('*, order_items(*)')
+-    .eq('id', params.id)
++    .eq('id', id)
+     .single();
+ 
+   if (!order) {
+diff --git a/app/admin/pesanan/page.js b/app/admin/pesanan/page.js
+index 9b46bb9..e67bded 100644
+--- a/app/admin/pesanan/page.js
++++ b/app/admin/pesanan/page.js
+@@ -18,7 +18,8 @@ const STATUS_LABEL = {
+ export const dynamic = 'force-dynamic';
+ 
+ export default async function AdminOrdersPage({ searchParams }) {
+-  const filter = searchParams?.status || 'paid';
++  const params = await searchParams;
++  const filter = params?.status || 'paid';
+ 
+   let query = supabase
+     .from('orders')
+diff --git a/app/api/admin/orders/[id]/retry-shipping/route.js b/app/api/admin/orders/[id]/retry-shipping/route.js
+index 634801a..f3fc87d 100644
+--- a/app/api/admin/orders/[id]/retry-shipping/route.js
++++ b/app/api/admin/orders/[id]/retry-shipping/route.js
+@@ -4,10 +4,11 @@ import { createShippingOrder } from '@/lib/biteship';
+ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+ 
+ export async function POST(req, { params }) {
++  const { id } = await params;
+   const { data: order, error } = await supabase
+     .from('orders')
+     .select('*, order_items(*)')
+-    .eq('id', params.id)
++    .eq('id', id)
+     .single();
+ 
+   if (error || !order) {
+@@ -40,7 +41,7 @@ export async function POST(req, { params }) {
+         waybill_id: shippingOrder.courier.waybill_id,
+         shipping_status: shippingOrder.status,
+       })
+-      .eq('id', params.id);
++      .eq('id', id);
+ 
+     return Response.json({ success: true });
+   } catch (err) {
+diff --git a/app/api/admin/orders/[id]/status/route.js b/app/api/admin/orders/[id]/status/route.js
+index 4fc681f..c2956be 100644
+--- a/app/api/admin/orders/[id]/status/route.js
++++ b/app/api/admin/orders/[id]/status/route.js
+@@ -5,13 +5,14 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
+ const VALID_STATUSES = ['processing', 'shipped', 'completed', 'cancelled'];
+ 
+ export async function POST(req, { params }) {
++  const { id } = await params;
+   const { status } = await req.json();
+ 
+   if (!VALID_STATUSES.includes(status)) {
+     return Response.json({ error: 'Status tidak valid' }, { status: 400 });
+   }
+ 
+-  const { error } = await supabase.from('orders').update({ status }).eq('id', params.id);
++  const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+   if (error) return Response.json({ error: error.message }, { status: 500 });
+ 
+   return Response.json({ success: true });

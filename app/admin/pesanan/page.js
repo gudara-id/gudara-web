@@ -18,7 +18,8 @@ const STATUS_LABEL = {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrdersPage({ searchParams }) {
-  const filter = searchParams?.status || 'paid';
+  const params = await searchParams;
+  const filter = params?.status || 'paid';
 
   let query = supabase
     .from('orders')
