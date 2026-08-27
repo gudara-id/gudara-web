@@ -32,13 +32,48 @@ export default function CheckoutPage() {
     city: '',
     postalCode: '',
   });
-  const [postalCode, setPostalCode] = useState("");
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [loadingRates, setLoadingRates] = useState(false);
 
   function updateField(field, value) {
     setRecipient((prev) => ({ ...prev, [field]: value }));
+    if (field === 'postalCode') {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+    }
+  }
+
+  async function checkRates() {
+    if (!recipient.postalCode) {
+      setErrorMsg('Isi kode pos dulu ya.');
+      return;
+    }
+    setErrorMsg('');
+    setLoadingRates(true);
+    setSelectedShipping(null);
+    try {
+      const res = await fetch('/api/shipping/rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinationPostalCode: recipient.postalCode,
+          items: cart.map((i) => ({ id: i.id, qty: i.qty })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Gagal cek ongkir.');
+        setShippingOptions([]);
+      } else {
+        setShippingOptions(data.options || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Gagal cek ongkir. Coba lagi.');
+    } finally {
+      setLoadingRates(false);
+    }
   }
 
   async function submitOrder() {
@@ -52,6 +87,10 @@ export default function CheckoutPage() {
       setErrorMsg('Lengkapi dulu alamat pengiriman ya.');
       return;
     }
+    if (!selectedShipping) {
+      setErrorMsg('Pilih kurir pengiriman dulu ya.');
+      return;
+    }
     if (!snapReady || !window.snap) {
       setErrorMsg('Payment sedang dimuat, coba lagi sebentar.');
       return;
@@ -62,7 +101,15 @@ export default function CheckoutPage() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart, recipient, paymentMethod: payMethod }),
+        body: JSON.stringify({
+          items: cart,
+          recipient,
+          paymentMethod: payMethod,
+          shipping: {
+            courier_company: selectedShipping.courier_company,
+            courier_type: selectedShipping.courier_type,
+          },
+        }),
       });
       const data = await res.json();
 
@@ -95,26 +142,7 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   }
-  
-  async function checkRates() {
-  setLoadingRates(true);
-  const res = await fetch("/api/shipping/rates", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      destinationPostalCode: postalCode,
-      items: cartItems.map((it) => ({
-        name: it.name,
-        price: it.price,
-        weight: it.weight,
-        quantity: it.qty,
-      })),
-    }),
-  });
-  const data = await res.json();
-  setShippingOptions(data.options || []);
-  setLoadingRates(false);
-}
+
   return (
     <>
       <Script
@@ -175,6 +203,44 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            <button
+              type="button"
+              className="btn"
+              style={{ marginTop: 8 }}
+              onClick={checkRates}
+              disabled={loadingRates || !recipient.postalCode}
+            >
+              {loadingRates ? 'Mengecek...' : 'Cek Ongkir'}
+            </button>
+
+            {shippingOptions.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                {shippingOptions.map((opt) => (
+                  <div
+                    key={`${opt.courier_company}-${opt.courier_type}`}
+                    className={`pay-option${
+                      selectedShipping?.courier_company === opt.courier_company &&
+                      selectedShipping?.courier_type === opt.courier_type
+                        ? ' selected'
+                        : ''
+                    }`}
+                    onClick={() => setSelectedShipping(opt)}
+                  >
+                    <input
+                      type="radio"
+                      name="shipping"
+                      checked={
+                        selectedShipping?.courier_company === opt.courier_company &&
+                        selectedShipping?.courier_type === opt.courier_type
+                      }
+                      readOnly
+                    />{' '}
+                    {opt.courier_name} - {opt.courier_service_name} ({opt.duration}) — {formatRp(opt.price)}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="eyebrow" style={{ margin: '28px 0 12px' }}>2. Metode Pembayaran</div>
             {PAY_OPTIONS.map((opt) => (
               <div
@@ -209,8 +275,14 @@ export default function CheckoutPage() {
               )}
             </div>
             <div className="summary-row"><span>Subtotal</span><span className="price">{formatRp(cartTotal)}</span></div>
-            <div className="summary-row"><span>Ongkir</span><span>Rp 0 (contoh)</span></div>
-            <div className="summary-row total"><span>Total</span><span>{formatRp(cartTotal)}</span></div>
+            <div className="summary-row">
+              <span>Ongkir</span>
+              <span>{selectedShipping ? formatRp(selectedShipping.price) : '—'}</span>
+            </div>
+            <div className="summary-row total">
+              <span>Total</span>
+              <span>{formatRp(cartTotal + (selectedShipping?.price || 0))}</span>
+            </div>
             <button
               className="btn btn--accent"
               style={{ width: '100%', justifyContent: 'center', marginTop: 16, opacity: submitting ? 0.6 : 1 }}
