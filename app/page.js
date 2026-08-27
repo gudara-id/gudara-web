@@ -2,17 +2,20 @@ export const dynamic = 'force-dynamic';
  
 import Link from 'next/link';
 import { getProductRow } from '@/lib/products';
+import { getJournalPosts } from '@/lib/journal';
 import ProductGrid from '@/components/ProductGrid';
+import JournalCard from '@/components/JournalCard';
  
 export default async function HomePage() {
   // Flat catalog feed — no category param means all categories mixed together,
   // shown as a single dense grid right below the hero (reference-site pattern:
   // no "Kategori" intermediary, straight into the product wall).
-  const [allProducts, rowDaily, rowSport, rowBasic] = await Promise.all([
+  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts] = await Promise.all([
     getProductRow(null, 24),
     getProductRow('daily', 4),
     getProductRow('sport', 4),
     getProductRow('basic', 4),
+    getJournalPosts(null, 3),
   ]);
  
   return (
@@ -90,6 +93,26 @@ export default async function HomePage() {
         </div>
       </section>
  
+      {/* JURNAL — berita, event, portofolio */}
+      {journalPosts.length > 0 && (
+        <section className="section section--tight">
+          <div className="wrap">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Jurnal</span>
+                <h2>Berita &amp; Cerita Kami</h2>
+              </div>
+              <Link className="see-all" href="/jurnal">Lihat Semua &rarr;</Link>
+            </div>
+            <div className="journal-grid">
+              {journalPosts.map((post) => (
+                <JournalCard key={post.id} post={post} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+ 
       {/* LOYALTY */}
       <section className="loyalty">
         <div className="wrap">
@@ -130,3 +153,4 @@ export default async function HomePage() {
     </>
   );
 }
+ 
