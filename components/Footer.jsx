@@ -28,6 +28,7 @@ export default function Footer() {
           <div>
             <h4>Perusahaan</h4>
             <Link href="/tentang">Tentang Kami</Link>
+            <Link href="/jurnal">Jurnal</Link>
             <a href="#">Karier</a>
             <a href="#">Ulasan</a>
           </div>
