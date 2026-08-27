@@ -1,0 +1,518 @@
+diff --git a/app/admin/pesanan/[id]/page.js b/app/admin/pesanan/[id]/page.js
+index 47a3b8f..fbccd32 100644
+--- a/app/admin/pesanan/[id]/page.js
++++ b/app/admin/pesanan/[id]/page.js
+@@ -1,12 +1,11 @@
+-import { createClient } from '@supabase/supabase-js';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { formatRp } from '@/lib/format';
+ import OrderActions from './OrderActions';
+ 
+-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+-
+ export const dynamic = 'force-dynamic';
+ 
+ export default async function AdminOrderDetailPage({ params }) {
++  const supabase = getSupabaseAdmin();
+   const { id } = await params;
+   const { data: order } = await supabase
+     .from('orders')
+@@ -50,7 +49,17 @@ export default async function AdminOrderDetailPage({ params }) {
+       <div className="eyebrow" style={{ margin: '24px 0 8px' }}>Pengiriman</div>
+       <p>Status pembayaran: <strong>{order.status}</strong></p>
+       <p>Status kurir: <strong>{order.shipping_status || '—'}</strong></p>
+-      <p>No. Resi: <strong>{order.waybill_id || 'Belum ada'}</strong></p>
++      <p>
++        No. Resi: <strong>{order.waybill_id || 'Belum ada'}</strong>
++        {order.waybill_id && (
++          <>
++            {' — '}
++            <a href={`/admin/pesanan/${order.id}/print`} target="_blank" rel="noopener noreferrer">
++              Cetak Resi
++            </a>
++          </>
++        )}
++      </p>
+ 
+       <OrderActions order={order} />
+     </section>
+diff --git a/app/admin/pesanan/[id]/print/PrintLabel.jsx b/app/admin/pesanan/[id]/print/PrintLabel.jsx
+new file mode 100644
+index 0000000..9e10779
+--- /dev/null
++++ b/app/admin/pesanan/[id]/print/PrintLabel.jsx
+@@ -0,0 +1,76 @@
++'use client';
++
++import { useEffect, useRef } from 'react';
++import JsBarcode from 'jsbarcode';
++import { formatRp } from '@/lib/format';
++
++export default function PrintLabel({ order, trackingLink }) {
++  const barcodeRef = useRef(null);
++
++  useEffect(() => {
++    if (order.waybill_id && barcodeRef.current) {
++      JsBarcode(barcodeRef.current, order.waybill_id, {
++        format: 'CODE128',
++        displayValue: true,
++        fontSize: 14,
++        height: 50,
++        margin: 4,
++      });
++    }
++  }, [order.waybill_id]);
++
++  useEffect(() => {
++    // Auto-buka dialog print begitu halaman siap.
++    const t = setTimeout(() => window.print(), 300);
++    return () => clearTimeout(t);
++  }, []);
++
++  return (
++    <div className="label-sheet">
++      <div className="label">
++        <div className="label__brand">GUDARA</div>
++
++        <div className="label__courier">
++          {order.courier_company?.toUpperCase()} — {order.courier_service_name || order.courier_type}
++        </div>
++
++        {order.waybill_id ? (
++          <svg ref={barcodeRef} className="label__barcode" />
++        ) : (
++          <p className="label__no-resi">No. Resi belum tersedia</p>
++        )}
++
++        <div className="label__section">
++          <div className="label__eyebrow">Penerima</div>
++          <p className="label__strong">{order.recipient_name}</p>
++          <p>{order.recipient_phone}</p>
++          <p>{order.shipping_address}, {order.shipping_city} {order.shipping_postal}</p>
++        </div>
++
++        <div className="label__section">
++          <div className="label__eyebrow">Item</div>
++          {order.order_items?.map((it) => (
++            <p key={it.id} className="label__item">
++              {it.product_name} {it.variant_label ? `(${it.variant_label})` : ''} × {it.qty}
++            </p>
++          ))}
++        </div>
++
++        <div className="label__footer">
++          <span>{order.order_number}</span>
++          <span>{formatRp(order.total)}</span>
++        </div>
++
++        {trackingLink && (
++          <p className="label__tracking no-print-line">
++            Lacak: {trackingLink}
++          </p>
++        )}
++      </div>
++
++      <button className="btn no-print" onClick={() => window.print()}>
++        Cetak Ulang
++      </button>
++    </div>
++  );
++}
+diff --git a/app/admin/pesanan/[id]/print/page.js b/app/admin/pesanan/[id]/print/page.js
+new file mode 100644
+index 0000000..6a5276d
+--- /dev/null
++++ b/app/admin/pesanan/[id]/print/page.js
+@@ -0,0 +1,44 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import { getShippingOrder } from '@/lib/biteship';
++import PrintLabel from './PrintLabel';
++
++export const dynamic = 'force-dynamic';
++
++export default async function PrintResiPage({ params }) {
++  const supabase = getSupabaseAdmin();
++  const { id } = await params;
++  const { data: order } = await supabase
++    .from('orders')
++    .select('*, order_items(*)')
++    .eq('id', id)
++    .single();
++
++  if (!order) {
++    return (
++      <section className="wrap" style={{ padding: '48px 0' }}>
++        <p>Order tidak ditemukan.</p>
++      </section>
++    );
++  }
++
++  if (!order.waybill_id) {
++    return (
++      <section className="wrap" style={{ padding: '48px 0' }}>
++        <p>Resi belum dibuat untuk order ini. Buat resi dulu dari halaman detail order.</p>
++      </section>
++    );
++  }
++
++  // Link tracking resmi dari Biteship — best effort, kalau gagal label tetap dicetak tanpa link ini.
++  let trackingLink = null;
++  if (order.biteship_order_id) {
++    try {
++      const shippingOrder = await getShippingOrder(order.biteship_order_id);
++      trackingLink = shippingOrder?.courier?.link || null;
++    } catch {
++      // biarkan null, jangan blokir pencetakan resi cuma karena ini gagal
++    }
++  }
++
++  return <PrintLabel order={order} trackingLink={trackingLink} />;
++}
+diff --git a/app/admin/pesanan/page.js b/app/admin/pesanan/page.js
+index e67bded..d904437 100644
+--- a/app/admin/pesanan/page.js
++++ b/app/admin/pesanan/page.js
+@@ -1,10 +1,8 @@
+ import Link from 'next/link';
+-import { createClient } from '@supabase/supabase-js';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { formatRp } from '@/lib/format';
+ import AdminLogoutButton from '@/components/AdminLogoutButton';
+ 
+-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+-
+ const STATUS_LABEL = {
+   pending_payment: 'Menunggu Bayar',
+   paid: 'Sudah Dibayar',
+@@ -18,6 +16,7 @@ const STATUS_LABEL = {
+ export const dynamic = 'force-dynamic';
+ 
+ export default async function AdminOrdersPage({ searchParams }) {
++  const supabase = getSupabaseAdmin();
+   const params = await searchParams;
+   const filter = params?.status || 'paid';
+ 
+diff --git a/app/api/admin/orders/[id]/retry-shipping/route.js b/app/api/admin/orders/[id]/retry-shipping/route.js
+index f3fc87d..a287479 100644
+--- a/app/api/admin/orders/[id]/retry-shipping/route.js
++++ b/app/api/admin/orders/[id]/retry-shipping/route.js
+@@ -1,10 +1,9 @@
+-import { createClient } from '@supabase/supabase-js';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { createShippingOrder } from '@/lib/biteship';
+ 
+-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+-
+ export async function POST(req, { params }) {
+   const { id } = await params;
++  const supabase = getSupabaseAdmin();
+   const { data: order, error } = await supabase
+     .from('orders')
+     .select('*, order_items(*)')
+diff --git a/app/api/admin/orders/[id]/status/route.js b/app/api/admin/orders/[id]/status/route.js
+index c2956be..1ee0312 100644
+--- a/app/api/admin/orders/[id]/status/route.js
++++ b/app/api/admin/orders/[id]/status/route.js
+@@ -1,6 +1,4 @@
+-import { createClient } from '@supabase/supabase-js';
+-
+-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ 
+ const VALID_STATUSES = ['processing', 'shipped', 'completed', 'cancelled'];
+ 
+@@ -12,6 +10,7 @@ export async function POST(req, { params }) {
+     return Response.json({ error: 'Status tidak valid' }, { status: 400 });
+   }
+ 
++  const supabase = getSupabaseAdmin();
+   const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+   if (error) return Response.json({ error: error.message }, { status: 500 });
+ 
+diff --git a/app/api/checkout/route.js b/app/api/checkout/route.js
+index 650f154..ad8f0f5 100644
+--- a/app/api/checkout/route.js
++++ b/app/api/checkout/route.js
+@@ -1,17 +1,19 @@
+ // app/api/checkout/route.js
+-import { createClient } from '@supabase/supabase-js';
+ import midtransClient from 'midtrans-client';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { getShippingRates } from '@/lib/biteship';
+ 
+-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+-
+-const snap = new midtransClient.Snap({
+-  isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+-  serverKey: process.env.MIDTRANS_SERVER_KEY,
+-});
++function getSnapClient() {
++  return new midtransClient.Snap({
++    isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
++    serverKey: process.env.MIDTRANS_SERVER_KEY,
++  });
++}
+ 
+ export async function POST(req) {
+   try {
++    const supabase = getSupabaseAdmin();
++    const snap = getSnapClient();
+     const body = await req.json();
+     const { items, recipient, paymentMethod, shipping } = body;
+     // shipping dari client: { courier_company, courier_type } — hasil pilihan user dari /api/shipping/rates
+diff --git a/app/api/midtrans-webhook/route.js b/app/api/midtrans-webhook/route.js
+index edd48e4..5e77445 100644
+--- a/app/api/midtrans-webhook/route.js
++++ b/app/api/midtrans-webhook/route.js
+@@ -1,11 +1,6 @@
+ // app/api/midtrans-webhook/route.js
+-import { createClient } from "@supabase/supabase-js";
+-import { createShippingOrder } from "@/lib/biteship";
+-
+-const supabase = createClient(
+-  process.env.SUPABASE_URL,
+-  process.env.SUPABASE_SERVICE_ROLE_KEY
+-);
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import { createShippingOrder } from '@/lib/biteship';
+ 
+ // Beberapa alat (termasuk tombol "Tes URL notifikasi" di dashboard Midtrans)
+ // mengecek keterjangkauan URL dengan request GET/HEAD sebelum mengirim POST
+@@ -16,6 +11,7 @@ export async function GET() {
+ }
+ 
+ export async function POST(request) {
++  const supabase = getSupabaseAdmin();
+   let notification;
+   try {
+     notification = await request.json();
+diff --git a/app/api/shipping/rates/route.js b/app/api/shipping/rates/route.js
+index 3219b2c..17b9316 100644
+--- a/app/api/shipping/rates/route.js
++++ b/app/api/shipping/rates/route.js
+@@ -1,14 +1,10 @@
+ // app/api/shipping/rates/route.js
+-import { createClient } from "@supabase/supabase-js";
++import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+ import { getShippingRates } from "@/lib/biteship";
+ 
+-const supabase = createClient(
+-  process.env.SUPABASE_URL,
+-  process.env.SUPABASE_SERVICE_ROLE_KEY
+-);
+-
+ export async function POST(request) {
+   try {
++    const supabase = getSupabaseAdmin();
+     const { destinationPostalCode, items } = await request.json();
+     // items dari cart: [{ id, qty }]
+ 
+diff --git a/app/globals.css b/app/globals.css
+index 04d0cb1..1fbac2c 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -617,3 +617,31 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   .pdp-sticky-cta .btn{padding:12px 20px;}
+ }
+  
++
++/* ===== Label resi (cetak) ===== */
++.label-sheet{
++  display:flex;flex-direction:column;align-items:center;gap:16px;
++  padding:24px;background:#f2f2f2;min-height:100vh;
++}
++.label{
++  width:100mm;min-height:150mm;background:var(--white);
++  padding:16px;box-sizing:border-box;border:1px solid var(--line);
++  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink);
++}
++.label__brand{font-family:'Anton',sans-serif;font-size:22px;letter-spacing:0.5px;margin-bottom:8px;}
++.label__courier{font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:8px;}
++.label__barcode{width:100%;height:auto;margin-bottom:8px;}
++.label__no-resi{color:#C6302B;margin-bottom:8px;}
++.label__section{margin-bottom:10px;padding-top:8px;border-top:1px dashed var(--line);}
++.label__eyebrow{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;}
++.label__strong{font-weight:700;}
++.label__item{font-size:11px;padding:2px 0;}
++.label__footer{display:flex;justify-content:space-between;font-weight:700;padding-top:8px;border-top:1px dashed var(--line);}
++.label__tracking{font-size:10px;color:var(--ink-soft);margin-top:8px;word-break:break-all;}
++
++@media print{
++  header.site, footer.site, .cart-drawer, .no-print{display:none !important;}
++  body, .label-sheet{background:#fff;padding:0;margin:0;}
++  .label{border:none;width:100%;min-height:auto;}
++  @page{size:100mm 150mm;margin:0;}
++}
+diff --git a/lib/biteship.js b/lib/biteship.js
+index d929d61..0b9174a 100644
+--- a/lib/biteship.js
++++ b/lib/biteship.js
+@@ -41,6 +41,12 @@ export async function getShippingRates({
+   });
+ }
+ 
++// Ambil detail order dari Biteship — dipakai untuk cek status terbaru
++// dan link tracking resmi (order.courier.link) saat cetak resi.
++export async function getShippingOrder(biteshipOrderId) {
++  return biteshipFetch(`/orders/${biteshipOrderId}`);
++}
++
+ export async function createShippingOrder({
+   destination,
+   courierCompany,
+diff --git a/lib/journal.js b/lib/journal.js
+index cc42b0f..8dd543a 100644
+--- a/lib/journal.js
++++ b/lib/journal.js
+@@ -1,4 +1,4 @@
+-import { supabase } from './supabase';
++import { getSupabase } from './supabase';
+ 
+ const PLACEHOLDER_COVER = 'https://placehold.co/1200x675/16181B/EAE7DF?font=roboto&text=GUDARA';
+ 
+@@ -29,6 +29,7 @@ function normalizePost(p) {
+ // Daftar postingan jurnal, terbaru duluan. `category` opsional untuk filter
+ // ('berita' | 'event' | 'portofolio').
+ export async function getJournalPosts(category, limit = 12) {
++  const supabase = getSupabase();
+   let query = supabase
+     .from('journal_posts')
+     .select('id, slug, title, category, excerpt, cover_image, event_date, published_at')
+@@ -48,6 +49,7 @@ export async function getJournalPosts(category, limit = 12) {
+ 
+ // Satu postingan lengkap + galeri foto tambahan (kalau ada), dicari by slug.
+ export async function getJournalPostBySlug(slug) {
++  const supabase = getSupabase();
+   const { data, error } = await supabase
+     .from('journal_posts')
+     .select('id, slug, title, category, excerpt, content, cover_image, event_date, published_at, journal_images(url, caption, sort_order)')
+diff --git a/lib/products.js b/lib/products.js
+index 6030446..5120b10 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -1,4 +1,4 @@
+-import { supabase } from './supabase';
++import { getSupabase } from './supabase';
+  
+ const PLACEHOLDER_IMAGE = 'https://placehold.co/800x1000/EAE7DF/16181B?font=roboto&text=GUDARA';
+  
+@@ -26,6 +26,7 @@ function normalizeCard(p) {
+  
+ // Mirrors renderProductRow(elId, kat, limit) from the prototype's products.js
+ export async function getProductRow(kat, limit = 8, sort = 'newest', search = '') {
++  const supabase = getSupabase();
+   let query = supabase
+     .from('products')
+     .select('id, slug, name, category, price, compare_price, created_at, product_images(url, sort_order)')
+@@ -66,6 +67,7 @@ export async function getRelatedProducts(kat, excludeSlug, limit = 4) {
+  
+ // Mirrors PRODUCTS.find(x => x.id === id) on product.html, but keyed by slug
+ export async function getProductBySlug(slug) {
++  const supabase = getSupabase();
+   const { data, error } = await supabase
+     .from('products')
+     .select(
+diff --git a/lib/supabase.js b/lib/supabase.js
+index 0cf9821..4b1a6da 100644
+--- a/lib/supabase.js
++++ b/lib/supabase.js
+@@ -3,7 +3,25 @@ import { createClient } from '@supabase/supabase-js';
+ // Anon key only — safe to use in both server and client components.
+ // Public read access to products/variants/images is allowed by the RLS
+ // policies in supabase/schema.sql. Never put the service_role key here.
+-export const supabase = createClient(
+-  process.env.NEXT_PUBLIC_SUPABASE_URL,
+-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+-);
++//
++// Lazy-initialized (sama alasannya dengan lib/supabaseAdmin.js): kalau
++// createClient() dipanggil langsung di top-level, Next.js akan
++// mengevaluasinya saat build time dan gagal build kalau env var belum
++// ke-set di environment tersebut (mis. Preview deployment).
++let _supabase = null;
++
++export function getSupabase() {
++  if (_supabase) return _supabase;
++
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++
++  if (!url || !key) {
++    throw new Error(
++      'NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY belum di-set di environment ini.'
++    );
++  }
++
++  _supabase = createClient(url, key);
++  return _supabase;
++}
+diff --git a/lib/supabaseAdmin.js b/lib/supabaseAdmin.js
+new file mode 100644
+index 0000000..3420804
+--- /dev/null
++++ b/lib/supabaseAdmin.js
+@@ -0,0 +1,27 @@
++import { createClient } from '@supabase/supabase-js';
++
++// Service-role client untuk kode server-only (admin routes, webhook, checkout).
++// Sengaja dibuat lazy (bukan langsung createClient() di top-level module) —
++// kalau dibuat di top-level, Next.js akan mengevaluasinya saat "collecting
++// page data" waktu build, dan build akan gagal duluan jika env var belum
++// ke-set di environment itu (mis. Preview deployment yang env var-nya belum
++// disamakan dengan Production). Dengan lazy init, error soal env var yang
++// hilang baru muncul saat route ini benar-benar dipanggil, dengan pesan yang
++// jelas — bukan bikin build gagal total.
++let _supabaseAdmin = null;
++
++export function getSupabaseAdmin() {
++  if (_supabaseAdmin) return _supabaseAdmin;
++
++  const url = process.env.SUPABASE_URL;
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
++
++  if (!url || !key) {
++    throw new Error(
++      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY belum di-set di environment ini.'
++    );
++  }
++
++  _supabaseAdmin = createClient(url, key);
++  return _supabaseAdmin;
++}
+diff --git a/package-lock.json b/package-lock.json
+index 5718beb..dfec82e 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -9,6 +9,7 @@
+       "version": "0.1.0",
+       "dependencies": {
+         "@supabase/supabase-js": "^2.112.3",
++        "jsbarcode": "^3.11.6",
+         "midtrans-client": "^1.4.3",
+         "next": "16.3.2",
+         "react": "19.2.8",
+@@ -1104,6 +1105,12 @@
+         "node": ">=20.0.0"
+       }
+     },
++    "node_modules/jsbarcode": {
++      "version": "3.12.3",
++      "resolved": "https://registry.npmjs.org/jsbarcode/-/jsbarcode-3.12.3.tgz",
++      "integrity": "sha512-CuHU9hC6dPsHF5oVFMo8NW76uQVjH4L22CsP4hW+dNnGywJHC/B0ThA1CTDVLnxKLrrpYdicBLnd2xsgTfRnvg==",
++      "license": "MIT"
++    },
+     "node_modules/lodash": {
+       "version": "4.18.1",
+       "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.18.1.tgz",
+diff --git a/package.json b/package.json
+index 950a98a..9dc9e1b 100644
+--- a/package.json
++++ b/package.json
+@@ -9,6 +9,7 @@
+   },
+   "dependencies": {
+     "@supabase/supabase-js": "^2.112.3",
++    "jsbarcode": "^3.11.6",
+     "midtrans-client": "^1.4.3",
+     "next": "16.3.2",
+     "react": "19.2.8",

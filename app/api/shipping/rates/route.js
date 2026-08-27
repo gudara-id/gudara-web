@@ -1,14 +1,10 @@
 // app/api/shipping/rates/route.js
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getShippingRates } from "@/lib/biteship";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 export async function POST(request) {
   try {
+    const supabase = getSupabaseAdmin();
     const { destinationPostalCode, items } = await request.json();
     // items dari cart: [{ id, qty }]
 

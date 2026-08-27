@@ -1,9 +1,7 @@
 import Link from 'next/link';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { formatRp } from '@/lib/format';
 import AdminLogoutButton from '@/components/AdminLogoutButton';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 const STATUS_LABEL = {
   pending_payment: 'Menunggu Bayar',
@@ -18,6 +16,7 @@ const STATUS_LABEL = {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrdersPage({ searchParams }) {
+  const supabase = getSupabaseAdmin();
   const params = await searchParams;
   const filter = params?.status || 'paid';
 

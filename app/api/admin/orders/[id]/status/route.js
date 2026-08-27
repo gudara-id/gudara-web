@@ -1,6 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const VALID_STATUSES = ['processing', 'shipped', 'completed', 'cancelled'];
 
@@ -12,6 +10,7 @@ export async function POST(req, { params }) {
     return Response.json({ error: 'Status tidak valid' }, { status: 400 });
   }
 
+  const supabase = getSupabaseAdmin();
   const { error } = await supabase.from('orders').update({ status }).eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
