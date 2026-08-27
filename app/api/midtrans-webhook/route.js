@@ -1,55 +1,54 @@
-// app/api/webhooks/midtrans/route.js
-import { NextResponse } from "next/server";
+// app/api/midtrans-webhook/route.js
 import { createClient } from "@supabase/supabase-js";
 import { createShippingOrder } from "@/lib/biteship";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // service role, bukan anon key
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 export async function POST(request) {
   const notification = await request.json();
   // TODO: verifikasi signature_key Midtrans di sini sebelum lanjut
 
-  const orderId = notification.order_id;
+  const orderNumber = notification.order_id; // ini order_number/midtrans_order_id, bukan uuid id
   const status = notification.transaction_status;
 
   if (status !== "settlement" && status !== "capture") {
-    return NextResponse.json({ received: true });
+    return Response.json({ received: true });
   }
 
   const { data: order, error } = await supabase
     .from("orders")
     .select("*, order_items(*)")
-    .eq("id", orderId)
+    .eq("order_number", orderNumber)
     .single();
 
   if (error || !order) {
-    return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
+    return Response.json({ error: "Order tidak ditemukan" }, { status: 404 });
   }
 
   if (order.waybill_id) {
     // resi sudah dibuat sebelumnya, hindari duplikat
-    return NextResponse.json({ received: true });
+    return Response.json({ received: true });
   }
 
   try {
     const shippingOrder = await createShippingOrder({
       destination: {
-        contact_name: order.destination_contact_name,
-        contact_phone: order.destination_contact_phone,
-        address: order.destination_address,
-        postal_code: order.destination_postal_code,
+        contact_name: order.recipient_name,
+        contact_phone: order.recipient_phone,
+        address: `${order.shipping_address}, ${order.shipping_city}`,
+        postal_code: order.shipping_postal,
       },
       courierCompany: order.courier_company,
       courierType: order.courier_type,
-      referenceId: order.id,
+      referenceId: order.order_number,
       items: order.order_items.map((it) => ({
         name: it.product_name,
-        value: it.price,
-        weight: it.weight || 250,
-        quantity: it.quantity,
+        value: it.unit_price,
+        weight: it.weight_grams || 250,
+        quantity: it.qty,
       })),
     });
 
@@ -60,17 +59,22 @@ export async function POST(request) {
         waybill_id: shippingOrder.courier.waybill_id,
         shipping_status: shippingOrder.status,
         status: "paid",
+        midtrans_status: status,
+        paid_at: new Date().toISOString(),
       })
-      .eq("id", orderId);
+      .eq("order_number", orderNumber);
   } catch (shippingErr) {
-    // Pembayaran tetap dicatat sukses walau resi gagal dibuat —
-    // catat error-nya biar bisa di-retry manual dari admin
     await supabase
       .from("orders")
-      .update({ status: "paid", shipping_status: "failed_to_create" })
-      .eq("id", orderId);
+      .update({
+        status: "paid",
+        midtrans_status: status,
+        paid_at: new Date().toISOString(),
+        shipping_status: "failed_to_create",
+      })
+      .eq("order_number", orderNumber);
     console.error("Gagal buat resi:", shippingErr.message);
   }
 
-  return NextResponse.json({ received: true });
+  return Response.json({ received: true });
 }
