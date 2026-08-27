@@ -1,7 +1,7 @@
 'use client';
 
 import Script from 'next/script';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/cart-context';
 import { formatRp } from '@/lib/format';
@@ -35,6 +35,7 @@ export default function CheckoutPage() {
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [loadingRates, setLoadingRates] = useState(false);
+  const debounceRef = useRef(null);
 
   function updateField(field, value) {
     setRecipient((prev) => ({ ...prev, [field]: value }));
@@ -75,6 +76,23 @@ export default function CheckoutPage() {
       setLoadingRates(false);
     }
   }
+
+  // Otomatis cek ongkir begitu kode pos terisi 5 digit, dengan debounce
+  useEffect(() => {
+    if (recipient.postalCode.length !== 5) {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      checkRates();
+    }, 600);
+
+    return () => clearTimeout(debounceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipient.postalCode, cart.length]);
 
   async function submitOrder() {
     setErrorMsg('');
@@ -210,7 +228,7 @@ export default function CheckoutPage() {
               onClick={checkRates}
               disabled={loadingRates || !recipient.postalCode}
             >
-              {loadingRates ? 'Mengecek...' : 'Cek Ongkir'}
+              {loadingRates ? 'Mengecek...' : shippingOptions.length > 0 ? 'Cek Ulang Ongkir' : 'Cek Ongkir'}
             </button>
 
             {shippingOptions.length > 0 && (
