@@ -1,11 +1,6 @@
 // app/api/midtrans-webhook/route.js
-import { createClient } from "@supabase/supabase-js";
-import { createShippingOrder } from "@/lib/biteship";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { createShippingOrder } from '@/lib/biteship';
 
 // Beberapa alat (termasuk tombol "Tes URL notifikasi" di dashboard Midtrans)
 // mengecek keterjangkauan URL dengan request GET/HEAD sebelum mengirim POST
@@ -16,6 +11,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const supabase = getSupabaseAdmin();
   let notification;
   try {
     notification = await request.json();

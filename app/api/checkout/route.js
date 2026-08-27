@@ -1,17 +1,19 @@
 // app/api/checkout/route.js
-import { createClient } from '@supabase/supabase-js';
 import midtransClient from 'midtrans-client';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getShippingRates } from '@/lib/biteship';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-const snap = new midtransClient.Snap({
-  isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
-  serverKey: process.env.MIDTRANS_SERVER_KEY,
-});
+function getSnapClient() {
+  return new midtransClient.Snap({
+    isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+    serverKey: process.env.MIDTRANS_SERVER_KEY,
+  });
+}
 
 export async function POST(req) {
   try {
+    const supabase = getSupabaseAdmin();
+    const snap = getSnapClient();
     const body = await req.json();
     const { items, recipient, paymentMethod, shipping } = body;
     // shipping dari client: { courier_company, courier_type } — hasil pilihan user dari /api/shipping/rates

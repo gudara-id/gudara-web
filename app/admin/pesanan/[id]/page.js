@@ -1,12 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { formatRp } from '@/lib/format';
 import OrderActions from './OrderActions';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminOrderDetailPage({ params }) {
+  const supabase = getSupabaseAdmin();
   const { id } = await params;
   const { data: order } = await supabase
     .from('orders')
@@ -50,7 +49,17 @@ export default async function AdminOrderDetailPage({ params }) {
       <div className="eyebrow" style={{ margin: '24px 0 8px' }}>Pengiriman</div>
       <p>Status pembayaran: <strong>{order.status}</strong></p>
       <p>Status kurir: <strong>{order.shipping_status || '—'}</strong></p>
-      <p>No. Resi: <strong>{order.waybill_id || 'Belum ada'}</strong></p>
+      <p>
+        No. Resi: <strong>{order.waybill_id || 'Belum ada'}</strong>
+        {order.waybill_id && (
+          <>
+            {' — '}
+            <a href={`/admin/pesanan/${order.id}/print`} target="_blank" rel="noopener noreferrer">
+              Cetak Resi
+            </a>
+          </>
+        )}
+      </p>
 
       <OrderActions order={order} />
     </section>

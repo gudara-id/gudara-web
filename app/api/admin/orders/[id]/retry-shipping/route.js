@@ -1,10 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { createShippingOrder } from '@/lib/biteship';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export async function POST(req, { params }) {
   const { id } = await params;
+  const supabase = getSupabaseAdmin();
   const { data: order, error } = await supabase
     .from('orders')
     .select('*, order_items(*)')
