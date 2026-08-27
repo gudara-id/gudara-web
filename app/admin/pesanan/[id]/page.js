@@ -64,17 +64,20 @@ export default async function AdminOrderDetailPage({ params }) {
       <div className="admin-card">
         <div className="admin-section-label" style={{ marginTop: 0 }}>Pengiriman</div>
         <p>Status kurir: <strong>{order.shipping_status || '—'}</strong></p>
-        <p>
+        <p style={{ marginBottom: order.waybill_id ? 16 : 0 }}>
           No. Resi: <strong>{order.waybill_id || 'Belum ada'}</strong>
-          {order.waybill_id && (
-            <>
-              {' — '}
-              <Link href={`/admin/pesanan/${order.id}/print`} target="_blank" rel="noopener noreferrer">
-                Cetak Resi
-              </Link>
-            </>
-          )}
         </p>
+        {order.waybill_id && (
+          <Link
+            href={`/admin/pesanan/${order.id}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn--outline"
+            style={{ color: 'var(--ink)', borderColor: 'var(--ink)' }}
+          >
+            Cetak Resi
+          </Link>
+        )}
  
         <OrderActions order={order} />
       </div>
