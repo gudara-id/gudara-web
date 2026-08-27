@@ -617,7 +617,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .pdp-sticky-cta .btn{padding:12px 20px;}
 }
  
-
+ 
 /* ===== Label resi (cetak) ===== */
 .label-sheet{
   display:flex;flex-direction:column;align-items:center;gap:16px;
@@ -638,10 +638,97 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .label__item{font-size:11px;padding:2px 0;}
 .label__footer{display:flex;justify-content:space-between;font-weight:700;padding-top:8px;border-top:1px dashed var(--line);}
 .label__tracking{font-size:10px;color:var(--ink-soft);margin-top:8px;word-break:break-all;}
-
+ 
 @media print{
   header.site, footer.site, .cart-drawer, .no-print{display:none !important;}
   body, .label-sheet{background:#fff;padding:0;margin:0;}
   .label{border:none;width:100%;min-height:auto;}
   @page{size:100mm 150mm;margin:0;}
+}
+ 
+/* ============================================
+   ADMIN DASHBOARD
+   Internal ops tool — reuses the site's monochrome
+   tokens for typography/borders, but allows small
+   functional colour-coding on order status (usability
+   for an internal dashboard, not a brand surface).
+   ============================================ */
+.admin-shell{padding:48px 0 96px;}
+.admin-shell--narrow{max-width:760px;}
+ 
+.admin-head{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:16px;flex-wrap:wrap;margin-bottom:32px;
+  padding-bottom:20px;border-bottom:1px solid var(--line);
+}
+.admin-head h1{
+  font-family:var(--display);font-size:28px;letter-spacing:0.01em;
+}
+.admin-head__meta{color:var(--ink-soft);font-size:13px;margin-top:4px;}
+ 
+.admin-back{
+  display:inline-block;margin-bottom:16px;
+  font-family:var(--mono);font-size:12px;letter-spacing:0.03em;
+  color:var(--ink-soft);text-decoration:underline;
+}
+.admin-back:hover{color:var(--ink);}
+ 
+.admin-tabs{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap;}
+.admin-tab{
+  padding:8px 16px;border:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;
+  color:var(--ink-soft);background:var(--white);transition:all .15s;
+}
+.admin-tab:hover{border-color:var(--ink);color:var(--ink);}
+.admin-tab.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
+ 
+.admin-table-wrap{border:1px solid var(--line);overflow-x:auto;}
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
+.admin-table thead th{
+  text-align:left;padding:12px 16px;white-space:nowrap;
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--ink-soft);background:var(--surface);border-bottom:1px solid var(--line);
+}
+.admin-table tbody td{padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+.admin-table tbody tr:last-child td{border-bottom:none;}
+.admin-table tbody tr:hover{background:var(--surface);}
+.admin-table a{font-weight:600;text-decoration:underline;text-underline-offset:2px;}
+.admin-empty{padding:40px 16px;text-align:center;color:var(--ink-soft);font-size:13px;}
+ 
+.admin-status{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;
+  white-space:nowrap;
+}
+.admin-status__dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+ 
+.admin-card{border:1px solid var(--line);padding:32px;}
+.admin-card + .admin-card{margin-top:16px;}
+.admin-section-label{
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--ink-soft);margin:24px 0 8px;
+}
+.admin-section-label:first-child{margin-top:0;}
+.admin-line-item{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:6px 0;}
+.admin-totals{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;}
+.admin-totals .admin-line-item--grand{font-weight:700;font-size:15px;border-top:1px solid var(--line);margin-top:6px;padding-top:10px;}
+ 
+.admin-actions{
+  display:flex;gap:8px;flex-wrap:wrap;
+  margin-top:28px;padding-top:24px;border-top:1px solid var(--line);
+}
+.admin-actions .btn{font-size:13px;}
+.admin-msg{width:100%;font-size:13px;margin-top:4px;}
+ 
+.admin-login-wrap{
+  min-height:70vh;display:flex;align-items:center;justify-content:center;
+}
+.admin-login-card{
+  width:100%;max-width:360px;padding:40px 32px;border:1px solid var(--line);
+}
+.admin-login-card .logo{display:block;text-align:center;margin-bottom:24px;font-size:28px;}
+ 
+@media (max-width:640px){
+  .admin-card{padding:20px;}
 }
