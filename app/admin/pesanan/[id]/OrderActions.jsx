@@ -11,32 +11,42 @@ export default function OrderActions({ order }) {
   async function updateStatus(status) {
     setLoading(true);
     setMsg('');
-    const res = await fetch(`/api/admin/orders/${order.id}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setMsg(data.error || 'Gagal update status.');
-      return;
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error || `Gagal update status (${res.status}).`);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
+    } finally {
+      setLoading(false);
     }
-    router.refresh();
   }
 
   async function retryShipping() {
     setLoading(true);
     setMsg('');
-    const res = await fetch(`/api/admin/orders/${order.id}/retry-shipping`, { method: 'POST' });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setMsg(data.error || 'Gagal membuat resi.');
-      return;
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/retry-shipping`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error || `Gagal membuat resi (${res.status}).`);
+        return;
+      }
+      setMsg('Resi berhasil dibuat.');
+      router.refresh();
+    } catch (err) {
+      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
+    } finally {
+      setLoading(false);
     }
-    setMsg('Resi berhasil dibuat.');
-    router.refresh();
   }
 
   return (
