@@ -32,6 +32,10 @@ export default function CheckoutPage() {
     city: '',
     postalCode: '',
   });
+  const [postalCode, setPostalCode] = useState("");
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [loadingRates, setLoadingRates] = useState(false);
 
   function updateField(field, value) {
     setRecipient((prev) => ({ ...prev, [field]: value }));
@@ -91,7 +95,26 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   }
-
+  
+  async function checkRates() {
+  setLoadingRates(true);
+  const res = await fetch("/api/shipping/rates", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      destinationPostalCode: postalCode,
+      items: cartItems.map((it) => ({
+        name: it.name,
+        price: it.price,
+        weight: it.weight,
+        quantity: it.qty,
+      })),
+    }),
+  });
+  const data = await res.json();
+  setShippingOptions(data.options || []);
+  setLoadingRates(false);
+}
   return (
     <>
       <Script
