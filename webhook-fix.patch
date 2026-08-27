@@ -1,0 +1,37 @@
+diff --git a/app/api/midtrans-webhook/route.js b/app/api/midtrans-webhook/route.js
+index 188fc11..edd48e4 100644
+--- a/app/api/midtrans-webhook/route.js
++++ b/app/api/midtrans-webhook/route.js
+@@ -7,14 +7,28 @@ const supabase = createClient(
+   process.env.SUPABASE_SERVICE_ROLE_KEY
+ );
+ 
++// Beberapa alat (termasuk tombol "Tes URL notifikasi" di dashboard Midtrans)
++// mengecek keterjangkauan URL dengan request GET/HEAD sebelum mengirim POST
++// sungguhan. Tanpa handler ini, Next.js otomatis membalas 405 dan test
++// tersebut akan gagal walau endpoint POST-nya sendiri baik-baik saja.
++export async function GET() {
++  return Response.json({ ok: true });
++}
++
+ export async function POST(request) {
+-  const notification = await request.json();
++  let notification;
++  try {
++    notification = await request.json();
++  } catch {
++    // Body kosong/bukan JSON (mis. dari test konektivitas) — jangan anggap error server.
++    return Response.json({ received: true });
++  }
+   // TODO: verifikasi signature_key Midtrans di sini sebelum lanjut
+ 
+-  const orderNumber = notification.order_id; // ini order_number/midtrans_order_id, bukan uuid id
+-  const status = notification.transaction_status;
++  const orderNumber = notification?.order_id; // ini order_number/midtrans_order_id, bukan uuid id
++  const status = notification?.transaction_status;
+ 
+-  if (status !== "settlement" && status !== "capture") {
++  if (!orderNumber || (status !== "settlement" && status !== "capture")) {
+     return Response.json({ received: true });
+   }
+ 
