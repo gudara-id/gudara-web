@@ -1,11 +1,24 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 import { formatRp } from '@/lib/format';
 
 export default function CartDrawer() {
   const { cart, cartTotal, drawerOpen, closeDrawer, updateQty, removeLine } = useCart();
+
+  // Same background-scroll lock as the mobile nav drawer — a fixed-position
+  // drawer over a still-scrollable page is the classic reason a drawer
+  // "doesn't work" on mobile even though it technically opened.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerOpen]);
 
   return (
     <>

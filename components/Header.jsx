@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 
@@ -14,6 +14,19 @@ export default function Header() {
   const { cartCount } = useCart();
   const [megaOpen, setMegaOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Lock background scroll while the mobile drawer is open — without this,
+  // the page behind keeps scrolling (especially on iOS Safari) and fights
+  // with the fixed-position drawer, which makes it look like it's not
+  // opening/working at all.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen]);
 
   return (
     <>
@@ -47,6 +60,7 @@ export default function Header() {
             </div>
             <Link href="/custom" onMouseEnter={() => setMegaOpen(false)}>Custom Kits</Link>
             <Link href="/jurnal" onMouseEnter={() => setMegaOpen(false)}>Jurnal</Link>
+            <Link href="/lacak" onMouseEnter={() => setMegaOpen(false)}>Lacak Pesanan</Link>
             <Link href="/tentang" onMouseEnter={() => setMegaOpen(false)}>Tentang Kami</Link>
           </nav>
           <div className="nav-actions">
@@ -56,8 +70,9 @@ export default function Header() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </Link>
-            <Link className="icon-btn" href="/keranjang">
-              Keranjang <span className="cart-count">{cartCount}</span>
+            <Link className="icon-btn" href="/keranjang" aria-label={`Keranjang, ${cartCount} item`}>
+              <span className="icon-btn__label">Keranjang</span>
+              <span className="cart-count">{cartCount}</span>
             </Link>
           </div>
         </div>
@@ -104,6 +119,7 @@ export default function Header() {
           <Link href="/etalase" onClick={() => setMobileOpen(false)}>Shop</Link>
           <Link href="/custom" onClick={() => setMobileOpen(false)}>Custom Kits</Link>
           <Link href="/jurnal" onClick={() => setMobileOpen(false)}>Jurnal</Link>
+          <Link href="/lacak" onClick={() => setMobileOpen(false)}>Lacak Pesanan</Link>
           <Link href="/tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
           <Link href="/keranjang" onClick={() => setMobileOpen(false)}>Keranjang ({cartCount})</Link>
         </nav>
