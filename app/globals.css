@@ -118,7 +118,7 @@ header.site{
 .nav-links a:hover{color:var(--accent);}
 .nav-item{display:flex;align-items:center;}
 .nav-actions{display:flex;align-items:center;gap:20px;}
-.icon-btn{position:relative;font-size:13px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;display:flex;align-items:center;gap:6px;}
+.icon-btn{position:relative;font-size:13px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;display:flex;align-items:center;gap:6px;min-height:44px;}
 .cart-count{
   background:var(--accent);color:#fff;
   font-family:var(--mono);font-size:11px;
@@ -664,13 +664,20 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .nav-links,.mega{display:none;}
   .menu-btn{display:flex;}
   .nav-row{gap:16px;}
+  .nav-actions{gap:14px;}
   .cat-grid{grid-template-columns:1fr;}
-  .p-grid{grid-template-columns:repeat(2,1fr);}
+  .p-grid{grid-template-columns:repeat(2,1fr);gap:14px;}
   .promo{grid-template-columns:1fr;}
-  .footer-grid{grid-template-columns:1fr 1fr;}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:28px 20px;}
   .checkout-grid{grid-template-columns:1fr;}
+  .summary-box{position:static;top:auto;}
   .pdp-layout{grid-template-columns:1fr;gap:24px;}
   .pdp-gallery{position:static;}
+
+  /* Touch targets: bump small controls to a comfortable tap size on mobile */
+  .qty-ctrl button{width:36px;height:36px;}
+  .qty-ctrl span{width:32px;line-height:36px;}
+  .search-box__clear{padding:6px;}
  
   /* Mobile sticky add-to-cart bar, mirroring the reference sites' PDP pattern */
   .pdp{padding-bottom:96px;}
@@ -683,6 +690,35 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .pdp-sticky-cta__info{display:flex;flex-direction:column;gap:2px;}
   .pdp-sticky-cta__name{font-size:12px;color:var(--ink-soft);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pdp-sticky-cta .btn{padding:12px 20px;}
+}
+
+/* ---- Small phones: keep the header from crowding and tighten spacing ---- */
+@media (max-width:480px){
+  .wrap{padding:0 16px;}
+  .nav-row{height:64px;}
+  .logo{font-size:22px;}
+  .icon-btn__label{display:none;}
+  .nav-actions{gap:16px;}
+
+  .hero{min-height:74vh;}
+  .hero__content{padding:40px 16px;}
+  .hero h1{font-size:clamp(44px,13vw,72px);}
+  .hero p{font-size:14px;}
+  .hero__ctas .btn{padding:13px 20px;font-size:12px;}
+
+  .section{padding:56px 0;}
+  .section--tight{padding:40px 0;}
+  .section-head h2{font-size:clamp(26px,8vw,36px);}
+
+  .journal-grid{grid-template-columns:1fr;}
+  .footer-grid{grid-template-columns:1fr;gap:28px;text-align:left;}
+  .footer-bottom{flex-direction:column;align-items:flex-start;gap:6px;}
+
+  .promo__info{padding:40px 24px;}
+  .loyalty{padding:48px 0;}
+  .loyalty ul{gap:16px;flex-direction:column;}
+
+  .mobile-drawer__links a{padding:16px 0;}
 }
  
  
