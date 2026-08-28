@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 
@@ -14,6 +14,19 @@ export default function Header() {
   const { cartCount } = useCart();
   const [megaOpen, setMegaOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Lock background scroll while the mobile drawer is open — without this,
+  // the page behind keeps scrolling (especially on iOS Safari) and fights
+  // with the fixed-position drawer, which makes it look like it's not
+  // opening/working at all.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen]);
 
   return (
     <>
