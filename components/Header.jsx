@@ -57,8 +57,9 @@ export default function Header() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </Link>
-            <Link className="icon-btn" href="/keranjang">
-              Keranjang <span className="cart-count">{cartCount}</span>
+            <Link className="icon-btn" href="/keranjang" aria-label={`Keranjang, ${cartCount} item`}>
+              <span className="icon-btn__label">Keranjang</span>
+              <span className="cart-count">{cartCount}</span>
             </Link>
           </div>
         </div>
