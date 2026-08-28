@@ -18,6 +18,15 @@ export default function ProductGallery({ images, name }) {
   // Fullscreen tap-to-view (mobile / touch devices without a mouse).
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  // Only devices with a real mouse (hover + fine pointer) get the
+  // marketplace-style zoom lens. On touch devices this stays false, so
+  // taps never leave a lens box "stuck" on the photo (see handleTouchStart).
+  const [canHoverZoom, setCanHoverZoom] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    setCanHoverZoom(mq.matches);
+  }, []);
+
   function goPrev() {
     setActive((i) => (i - 1 + images.length) % images.length);
   }
@@ -25,19 +34,26 @@ export default function ProductGallery({ images, name }) {
     setActive((i) => (i + 1) % images.length);
   }
 
-  // Touch swipe support (mobile "geser" gesture)
-  let touchStartX = 0;
+  // Touch swipe support (mobile "geser" gesture).
+  // A ref (not a plain variable) so the value set on touchstart survives
+  // through to touchend even if something else re-renders the component
+  // in between — a plain local variable gets reset to 0 on every render
+  // and silently breaks the swipe.
+  const touchStartXRef = useRef(0);
   function handleTouchStart(e) {
-    touchStartX = e.touches[0].clientX;
+    touchStartXRef.current = e.touches[0].clientX;
+    // Make sure no leftover zoom lens is showing on touch devices.
+    if (isZooming) setIsZooming(false);
   }
   function handleTouchEnd(e) {
-    const diff = e.changedTouches[0].clientX - touchStartX;
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
     if (Math.abs(diff) < 40) return;
     if (diff > 0) goPrev();
     else goNext();
   }
 
   function handleMouseMove(e) {
+    if (!canHoverZoom) return;
     const rect = mainRef.current.getBoundingClientRect();
     const rawX = ((e.clientX - rect.left) / rect.width) * 100;
     const rawY = ((e.clientY - rect.top) / rect.height) * 100;
@@ -76,10 +92,10 @@ export default function ProductGallery({ images, name }) {
       <div
         ref={mainRef}
         className="pdp-gallery__main"
-        onTouchStart={hasMultiple ? handleTouchStart : undefined}
+        onTouchStart={handleTouchStart}
         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
-        onMouseEnter={() => setIsZooming(true)}
-        onMouseLeave={() => setIsZooming(false)}
+        onMouseEnter={() => canHoverZoom && setIsZooming(true)}
+        onMouseLeave={() => canHoverZoom && setIsZooming(false)}
         onMouseMove={handleMouseMove}
         onClick={() => setLightboxOpen(true)}
         role="button"
