@@ -94,7 +94,7 @@ export default async function ProductPage({ params }) {
             </div>
             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
           </div>
-          <ProductGrid products={related} />
+          <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
         </section>
       )}
  
