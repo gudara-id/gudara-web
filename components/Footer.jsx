@@ -20,7 +20,7 @@ export default function Footer() {
           </div>
           <div>
             <h4>Bantuan</h4>
-            <a href="#">Lacak Pesanan</a>
+            <Link href="/lacak">Lacak Pesanan</Link>
             <a href="#">Pengembalian</a>
             <a href="#">Panduan Ukuran</a>
             <a href="https://wa.me/628131648947">Hubungi Kami</a>
