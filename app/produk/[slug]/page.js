@@ -78,7 +78,7 @@ export default async function ProductPage({ params }) {
             </div>
           </div>
  
-          <AddToCartSection product={product} />
+          <AddToCartSection product={product} hideAddToCart={product.kat === 'custom'} />
           <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
  
           <ProductAccordion sections={accordionSections} />
