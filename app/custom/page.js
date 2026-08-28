@@ -49,6 +49,7 @@ export default async function CustomPage() {
           <ProductGrid
             products={products}
             emptyLabel="Produk custom sedang disiapkan — chat admin untuk konsultasi desain sementara ini."
+            variant="custom"
           />
         </div>
  
