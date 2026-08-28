@@ -24,12 +24,10 @@ export default function ProductCard({ product, variant = 'shop' }) {
         <Link href={`/produk/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="p-card__name">{product.name}</div>
         </Link>
-        {!isCustom && (
-          <div className="p-card__prices">
-            <span className="price">{formatRp(product.price)}</span>
-            {product.old && <span className="price-old">{formatRp(product.old)}</span>}
-          </div>
-        )}
+        <div className="p-card__prices">
+          <span className="price">{formatRp(product.price)}</span>
+          {product.old && <span className="price-old">{formatRp(product.old)}</span>}
+        </div>
         {isCustom ? (
           <a
             className="p-card__add"
