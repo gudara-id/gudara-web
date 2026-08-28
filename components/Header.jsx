@@ -47,6 +47,7 @@ export default function Header() {
             </div>
             <Link href="/custom" onMouseEnter={() => setMegaOpen(false)}>Custom Kits</Link>
             <Link href="/jurnal" onMouseEnter={() => setMegaOpen(false)}>Jurnal</Link>
+            <Link href="/lacak" onMouseEnter={() => setMegaOpen(false)}>Lacak Pesanan</Link>
             <Link href="/tentang" onMouseEnter={() => setMegaOpen(false)}>Tentang Kami</Link>
           </nav>
           <div className="nav-actions">
@@ -104,6 +105,7 @@ export default function Header() {
           <Link href="/etalase" onClick={() => setMobileOpen(false)}>Shop</Link>
           <Link href="/custom" onClick={() => setMobileOpen(false)}>Custom Kits</Link>
           <Link href="/jurnal" onClick={() => setMobileOpen(false)}>Jurnal</Link>
+          <Link href="/lacak" onClick={() => setMobileOpen(false)}>Lacak Pesanan</Link>
           <Link href="/tentang" onClick={() => setMobileOpen(false)}>Tentang Kami</Link>
           <Link href="/keranjang" onClick={() => setMobileOpen(false)}>Keranjang ({cartCount})</Link>
         </nav>
