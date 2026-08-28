@@ -11,7 +11,7 @@ export default async function HomePage() {
   // shown as a single dense grid right below the hero (reference-site pattern:
   // no "Kategori" intermediary, straight into the product wall).
   const [allProducts, rowDaily, rowSport, rowBasic, journalPosts] = await Promise.all([
-    getProductRow(null, 24),
+    getProductRow(null, 24, 'newest', '', { excludeCustom: true }),
     getProductRow('daily', 4),
     getProductRow('sport', 4),
     getProductRow('basic', 4),
@@ -153,4 +153,3 @@ export default async function HomePage() {
     </>
   );
 }
- 
