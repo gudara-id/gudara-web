@@ -92,7 +92,7 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
           Tambah ke Keranjang
         </button>
       )}
-      
+      <a
         href={`https://wa.me/628131648947?text=Halo%20Admin%20Gudara%2C%20saya%20mau%20tanya%20${
           hideAddToCart ? 'custom' : 'stok'
         }%20${encodeURIComponent(product.name)}`}
