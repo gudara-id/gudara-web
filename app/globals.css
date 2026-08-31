@@ -136,7 +136,7 @@ header.site{
   transition:opacity .18s ease, transform .18s ease, visibility .18s;
 }
 .mega--open{opacity:1;visibility:visible;transform:translateY(0);}
-.mega-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;}
+.mega-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px;}
 .mega-col h4{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px;}
 .mega-col a{display:block;padding:6px 0;font-size:14px;}
 .mega-col a:hover{color:var(--accent);}
@@ -234,7 +234,7 @@ header.site{
 /* ---- Category grid ---- */
 .cat-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:2px;background:var(--line);
 }
 .cat-card{
@@ -257,7 +257,7 @@ header.site{
 /* ---- Product grid / carousel ---- */
 .p-grid{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:20px;
 }
 /* Dense variant — tight hairline gaps (reference-site "product wall" pattern),
@@ -306,7 +306,7 @@ header.site{
  
 /* ---- Promo split banner ---- */
 .promo{
-  display:grid;grid-template-columns:1fr 1fr;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   min-height:520px;
 }
 .promo__media{background-size:cover;background-position:center;}
@@ -333,7 +333,7 @@ header.site{
 /* ---- Footer ---- */
 footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px;}
 .footer-grid{
-  display:grid;grid-template-columns:2fr repeat(4,1fr);gap:32px;
+  display:grid;grid-template-columns:minmax(0,2fr) repeat(4,minmax(0,1fr));gap:32px;
   padding-bottom:48px;border-bottom:1px solid rgba(255,255,255,.12);
 }
 .footer-grid h4{color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;}
@@ -379,7 +379,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .empty-cart{padding:40px 0;text-align:center;color:var(--ink-soft);font-size:14px;}
  
 /* ---- Checkout / cart page ---- */
-.checkout-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:48px;align-items:flex-start;}
+.checkout-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:48px;align-items:flex-start;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;color:var(--ink-soft);}
 .field input,.field select,.field textarea{
@@ -451,7 +451,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .breadcrumb a:hover{color:var(--ink);}
 .breadcrumb__current{color:var(--ink);}
  
-.pdp-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:56px;align-items:start;}
+.pdp-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px;align-items:start;}
  
 .pdp-gallery{display:flex;flex-direction:column;gap:12px;position:sticky;top:96px;}
 .pdp-gallery__main{aspect-ratio:4/5;background:var(--surface);overflow:visible;position:relative;cursor:zoom-in;}
@@ -674,13 +674,13 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .menu-btn{display:flex;}
   .nav-row{gap:16px;}
   .nav-actions{gap:14px;}
-  .cat-grid{grid-template-columns:1fr;}
-  .p-grid{grid-template-columns:repeat(2,1fr);gap:14px;}
-  .promo{grid-template-columns:1fr;}
-  .footer-grid{grid-template-columns:1fr 1fr;gap:28px 20px;}
-  .checkout-grid{grid-template-columns:1fr;}
+  .cat-grid{grid-template-columns:minmax(0,1fr);}
+  .p-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .promo{grid-template-columns:minmax(0,1fr);}
+  .footer-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px 20px;}
+  .checkout-grid{grid-template-columns:minmax(0,1fr);}
   .summary-box{position:static;top:auto;}
-  .pdp-layout{grid-template-columns:1fr;gap:24px;}
+  .pdp-layout{grid-template-columns:minmax(0,1fr);gap:24px;}
   .pdp-gallery{position:static;}
 
   /* Touch targets: bump small controls to a comfortable tap size on mobile */
