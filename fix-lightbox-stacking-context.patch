@@ -1,0 +1,300 @@
+diff --git a/components/CollarOptionsGrid.jsx b/components/CollarOptionsGrid.jsx
+new file mode 100644
+index 0000000..2c6f8f9
+--- /dev/null
++++ b/components/CollarOptionsGrid.jsx
+@@ -0,0 +1,132 @@
++'use client';
++
++import { useEffect, useState } from 'react';
++import { createPortal } from 'react-dom';
++
++// Grid "Pilihan Kerah" — dulu kartu kecil datar, teks kode susah kebaca dan
++// harus buka tab baru buat lihat detail. Sekarang: kartu lebih besar dengan
++// efek angkat saat hover, klik untuk zoom in-page, dan tombol salin kode
++// biar konsumen tinggal paste ke chat admin, tidak perlu ngetik ulang.
++export default function CollarOptionsGrid({ options }) {
++  const [activeIndex, setActiveIndex] = useState(null);
++  const [copiedLabel, setCopiedLabel] = useState(null);
++  const isOpen = activeIndex !== null;
++  // Render lewat portal ke <body> supaya lightbox tidak pernah kejebak di
++  // stacking context ancestor manapun (lihat catatan di ProductGallery.jsx).
++  const [mounted, setMounted] = useState(false);
++  useEffect(() => setMounted(true), []);
++
++  useEffect(() => {
++    if (!isOpen) return;
++    function handleKey(e) {
++      if (e.key === 'Escape') setActiveIndex(null);
++      if (e.key === 'ArrowLeft') setActiveIndex((i) => (i - 1 + options.length) % options.length);
++      if (e.key === 'ArrowRight') setActiveIndex((i) => (i + 1) % options.length);
++    }
++    document.addEventListener('keydown', handleKey);
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => {
++      document.removeEventListener('keydown', handleKey);
++      document.body.style.overflow = prevOverflow;
++    };
++  }, [isOpen, options.length]);
++
++  if (!options || options.length === 0) return null;
++
++  function copyLabel(label) {
++    if (navigator.clipboard) {
++      navigator.clipboard.writeText(label).catch(() => {});
++    }
++    setCopiedLabel(label);
++    setTimeout(() => setCopiedLabel((cur) => (cur === label ? null : cur)), 1500);
++  }
++
++  const active = isOpen ? options[activeIndex] : null;
++
++  return (
++    <>
++      <div className="pdp-collar-options__grid">
++        {options.map((c, i) => (
++          <div className="pdp-collar-options__item" key={c.url}>
++            <button
++              type="button"
++              className="pdp-collar-options__photo"
++              onClick={() => setActiveIndex(i)}
++              aria-label={`Perbesar ${c.label}`}
++            >
++              <img src={c.url} alt={c.label} loading="lazy" />
++            </button>
++            <button
++              type="button"
++              className="pdp-collar-options__label"
++              onClick={() => copyLabel(c.label)}
++            >
++              {copiedLabel === c.label ? 'Tersalin \u2713' : c.label}
++            </button>
++          </div>
++        ))}
++      </div>
++
++      {mounted && isOpen && createPortal(
++        <div className="pdp-lightbox" onClick={() => setActiveIndex(null)}>
++          <button
++            className="pdp-lightbox__close"
++            onClick={(e) => {
++              e.stopPropagation();
++              setActiveIndex(null);
++            }}
++            aria-label="Tutup"
++            type="button"
++          >
++            &times;
++          </button>
++
++          <div className="pdp-lightbox__stage" onClick={(e) => e.stopPropagation()}>
++            <img src={active.url} alt={active.label} className="pdp-lightbox__img" />
++          </div>
++
++          <button
++            type="button"
++            className="pdp-lightbox__copy"
++            onClick={(e) => {
++              e.stopPropagation();
++              copyLabel(active.label);
++            }}
++          >
++            {copiedLabel === active.label ? 'Tersalin \u2713' : `Salin \u201c${active.label}\u201d`}
++          </button>
++
++          {options.length > 1 && (
++            <>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--prev"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i - 1 + options.length) % options.length);
++                }}
++                aria-label="Kerah sebelumnya"
++                type="button"
++              >
++                &lsaquo;
++              </button>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--next"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i + 1) % options.length);
++                }}
++                aria-label="Kerah berikutnya"
++                type="button"
++              >
++                &rsaquo;
++              </button>
++              <span className="pdp-lightbox__counter">{activeIndex + 1} / {options.length}</span>
++            </>
++          )}
++        </div>,
++        document.body
++      )}
++    </>
++  );
++}
+diff --git a/components/DesignRefGrid.jsx b/components/DesignRefGrid.jsx
+new file mode 100644
+index 0000000..011e96e
+--- /dev/null
++++ b/components/DesignRefGrid.jsx
+@@ -0,0 +1,107 @@
++'use client';
++
++import { useEffect, useState } from 'react';
++import { createPortal } from 'react-dom';
++
++// Grid galeri "Referensi Desain" — dulu cuma kotak flat yang buka tab baru.
++// Sekarang: nomor urut, overlay hover, dan klik buka lightbox in-page
++// (konsisten dengan lightbox foto produk utama) supaya konsumen bisa
++// zoom tanpa kehilangan konteks halaman produk.
++export default function DesignRefGrid({ images, productName }) {
++  const [activeIndex, setActiveIndex] = useState(null);
++  const isOpen = activeIndex !== null;
++  // Render lewat portal ke <body> supaya lightbox tidak pernah kejebak di
++  // stacking context ancestor manapun (lihat catatan di ProductGallery.jsx).
++  const [mounted, setMounted] = useState(false);
++  useEffect(() => setMounted(true), []);
++
++  useEffect(() => {
++    if (!isOpen) return;
++    function handleKey(e) {
++      if (e.key === 'Escape') setActiveIndex(null);
++      if (e.key === 'ArrowLeft') setActiveIndex((i) => (i - 1 + images.length) % images.length);
++      if (e.key === 'ArrowRight') setActiveIndex((i) => (i + 1) % images.length);
++    }
++    document.addEventListener('keydown', handleKey);
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => {
++      document.removeEventListener('keydown', handleKey);
++      document.body.style.overflow = prevOverflow;
++    };
++  }, [isOpen, images.length]);
++
++  if (!images || images.length === 0) return null;
++
++  return (
++    <>
++      <div className="pdp-design-refs__grid">
++        {images.map((src, i) => (
++          <button
++            type="button"
++            key={src + i}
++            className="pdp-design-refs__item"
++            onClick={() => setActiveIndex(i)}
++            aria-label={`Perbesar referensi desain ${i + 1}`}
++          >
++            <img src={src} alt={`Referensi desain ${productName} ${i + 1}`} loading="lazy" />
++            <span className="pdp-design-refs__index">{String(i + 1).padStart(2, '0')}</span>
++            <span className="pdp-design-refs__overlay">
++              <span className="pdp-design-refs__overlay-icon" aria-hidden="true">&#128269;</span>
++              Lihat Detail
++            </span>
++          </button>
++        ))}
++      </div>
++
++      {mounted && isOpen && createPortal(
++        <div className="pdp-lightbox" onClick={() => setActiveIndex(null)}>
++          <button
++            className="pdp-lightbox__close"
++            onClick={(e) => {
++              e.stopPropagation();
++              setActiveIndex(null);
++            }}
++            aria-label="Tutup"
++            type="button"
++          >
++            &times;
++          </button>
++
++          <div className="pdp-lightbox__stage" onClick={(e) => e.stopPropagation()}>
++            <img src={images[activeIndex]} alt={`Referensi desain ${productName}`} className="pdp-lightbox__img" />
++          </div>
++
++          {images.length > 1 && (
++            <>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--prev"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i - 1 + images.length) % images.length);
++                }}
++                aria-label="Referensi sebelumnya"
++                type="button"
++              >
++                &lsaquo;
++              </button>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--next"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i + 1) % images.length);
++                }}
++                aria-label="Referensi berikutnya"
++                type="button"
++              >
++                &rsaquo;
++              </button>
++              <span className="pdp-lightbox__counter">{activeIndex + 1} / {images.length}</span>
++            </>
++          )}
++        </div>,
++        document.body
++      )}
++    </>
++  );
++}
+diff --git a/components/ProductGallery.jsx b/components/ProductGallery.jsx
+index dabdc3c..98770e1 100644
+--- a/components/ProductGallery.jsx
++++ b/components/ProductGallery.jsx
+@@ -1,6 +1,7 @@
+ 'use client';
+ 
+ import { useEffect, useRef, useState } from 'react';
++import { createPortal } from 'react-dom';
+ 
+ const ZOOM_LEVEL = 2.5; // how much the lens panel magnifies
+ const LENS_SIZE_PCT = 100 / ZOOM_LEVEL; // lens box size as % of the image
+@@ -8,6 +9,17 @@ const SWIPE_THRESHOLD = 40; // px — minimum horizontal drag to count as a swip
+ 
+ export default function ProductGallery({ images, name }) {
+   const [active, setActive] = useState(0);
++  // .pdp-gallery (elemen pembungkus di bawah) pakai `position:sticky` supaya
++  // galeri ikut scroll di desktop — tapi `position:sticky` itu membuat
++  // stacking context CSS baru. Kalau lightbox (`position:fixed`) dirender di
++  // DALAM elemen sticky itu, dia kejebak di stacking context tsb, jadi kolom
++  // deskripsi produk di sampingnya (yang urutan DOM-nya lebih belakang) malah
++  // tercat DI ATAS lightbox — inilah penyebab teks "menimpa" foto pas modal
++  // dibuka. Fix: render lightbox lewat portal langsung ke <body>, lolos dari
++  // stacking context manapun. `mounted` cuma buat mastiin document sudah ada
++  // (component ini di-render di server dulu sebelum hydrate di browser).
++  const [mounted, setMounted] = useState(false);
++  useEffect(() => setMounted(true), []);
+   // Satu state dipakai bareng buat foto utama & thumbnail — kalau sebuah URL
+   // gagal dimuat (404/rusak), ditandai di sini sekali dan tidak dicoba lagi.
+   const [brokenImages, setBrokenImages] = useState({});
+@@ -239,7 +251,7 @@ export default function ProductGallery({ images, name }) {
+         </div>
+       )}
+ 
+-      {lightboxOpen && (
++      {mounted && lightboxOpen && createPortal(
+         <div className="pdp-lightbox" onClick={closeLightbox}>
+           <button
+             className="pdp-lightbox__close"
+@@ -289,7 +301,8 @@ export default function ProductGallery({ images, name }) {
+               <span className="pdp-lightbox__counter">{active + 1} / {images.length}</span>
+             </>
+           )}
+-        </div>
++        </div>,
++        document.body
+       )}
+     </div>
+   );
