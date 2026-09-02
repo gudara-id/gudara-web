@@ -110,6 +110,30 @@ export default async function ProductPage({ params }) {
         </div>
       </div>
 
+      {product.designReferences.length > 0 && (
+        <section className="pdp-related pdp-design-refs">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Contoh Hasil Jadi</span>
+              <h2>Referensi Desain</h2>
+            </div>
+          </div>
+          <div className="pdp-design-refs__grid">
+            {product.designReferences.map((src) => (
+              <a
+                key={src}
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pdp-design-refs__item"
+              >
+                <img src={src} alt={`Referensi desain ${product.name}`} />
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
       {product.collarOptions.length > 0 && (
         <section className="pdp-collar-options">
           <div className="section-head">
@@ -151,30 +175,6 @@ export default async function ProductPage({ params }) {
             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
           </div>
           <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
-        </section>
-      )}
- 
-      {product.designReferences.length > 0 && (
-        <section className="pdp-related pdp-design-refs">
-          <div className="section-head">
-            <div>
-              <span className="eyebrow">Contoh Hasil Jadi</span>
-              <h2>Referensi Desain</h2>
-            </div>
-          </div>
-          <div className="pdp-design-refs__grid">
-            {product.designReferences.map((src) => (
-              <a
-                key={src}
-                href={src}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pdp-design-refs__item"
-              >
-                <img src={src} alt={`Referensi desain ${product.name}`} />
-              </a>
-            ))}
-          </div>
         </section>
       )}
  
