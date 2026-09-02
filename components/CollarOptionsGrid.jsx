@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // Grid "Pilihan Kerah" — dulu kartu kecil datar, teks kode susah kebaca dan
 // harus buka tab baru buat lihat detail. Sekarang: kartu lebih besar dengan
@@ -10,6 +11,10 @@ export default function CollarOptionsGrid({ options }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [copiedLabel, setCopiedLabel] = useState(null);
   const isOpen = activeIndex !== null;
+  // Render lewat portal ke <body> supaya lightbox tidak pernah kejebak di
+  // stacking context ancestor manapun (lihat catatan di ProductGallery.jsx).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -63,7 +68,7 @@ export default function CollarOptionsGrid({ options }) {
         ))}
       </div>
 
-      {isOpen && (
+      {mounted && isOpen && createPortal(
         <div className="pdp-lightbox" onClick={() => setActiveIndex(null)}>
           <button
             className="pdp-lightbox__close"
@@ -119,7 +124,8 @@ export default function CollarOptionsGrid({ options }) {
               <span className="pdp-lightbox__counter">{activeIndex + 1} / {options.length}</span>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

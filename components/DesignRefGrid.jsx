@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // Grid galeri "Referensi Desain" — dulu cuma kotak flat yang buka tab baru.
 // Sekarang: nomor urut, overlay hover, dan klik buka lightbox in-page
@@ -9,6 +10,10 @@ import { useEffect, useState } from 'react';
 export default function DesignRefGrid({ images, productName }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const isOpen = activeIndex !== null;
+  // Render lewat portal ke <body> supaya lightbox tidak pernah kejebak di
+  // stacking context ancestor manapun (lihat catatan di ProductGallery.jsx).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -49,7 +54,7 @@ export default function DesignRefGrid({ images, productName }) {
         ))}
       </div>
 
-      {isOpen && (
+      {mounted && isOpen && createPortal(
         <div className="pdp-lightbox" onClick={() => setActiveIndex(null)}>
           <button
             className="pdp-lightbox__close"
@@ -94,7 +99,8 @@ export default function DesignRefGrid({ images, productName }) {
               <span className="pdp-lightbox__counter">{activeIndex + 1} / {images.length}</span>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

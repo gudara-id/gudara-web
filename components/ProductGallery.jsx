@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const ZOOM_LEVEL = 2.5; // how much the lens panel magnifies
 const LENS_SIZE_PCT = 100 / ZOOM_LEVEL; // lens box size as % of the image
@@ -8,6 +9,17 @@ const SWIPE_THRESHOLD = 40; // px — minimum horizontal drag to count as a swip
 
 export default function ProductGallery({ images, name }) {
   const [active, setActive] = useState(0);
+  // .pdp-gallery (elemen pembungkus di bawah) pakai `position:sticky` supaya
+  // galeri ikut scroll di desktop — tapi `position:sticky` itu membuat
+  // stacking context CSS baru. Kalau lightbox (`position:fixed`) dirender di
+  // DALAM elemen sticky itu, dia kejebak di stacking context tsb, jadi kolom
+  // deskripsi produk di sampingnya (yang urutan DOM-nya lebih belakang) malah
+  // tercat DI ATAS lightbox — inilah penyebab teks "menimpa" foto pas modal
+  // dibuka. Fix: render lightbox lewat portal langsung ke <body>, lolos dari
+  // stacking context manapun. `mounted` cuma buat mastiin document sudah ada
+  // (component ini di-render di server dulu sebelum hydrate di browser).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   // Satu state dipakai bareng buat foto utama & thumbnail — kalau sebuah URL
   // gagal dimuat (404/rusak), ditandai di sini sekali dan tidak dicoba lagi.
   const [brokenImages, setBrokenImages] = useState({});
@@ -239,7 +251,7 @@ export default function ProductGallery({ images, name }) {
         </div>
       )}
 
-      {lightboxOpen && (
+      {mounted && lightboxOpen && createPortal(
         <div className="pdp-lightbox" onClick={closeLightbox}>
           <button
             className="pdp-lightbox__close"
@@ -289,7 +301,8 @@ export default function ProductGallery({ images, name }) {
               <span className="pdp-lightbox__counter">{active + 1} / {images.length}</span>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
