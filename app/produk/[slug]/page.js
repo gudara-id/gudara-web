@@ -8,6 +8,8 @@ import AddToCartSection from '@/components/AddToCartSection';
 import ProductGallery from '@/components/ProductGallery';
 import ProductAccordion from '@/components/ProductAccordion';
 import ProductGrid from '@/components/ProductGrid';
+import DesignRefGrid from '@/components/DesignRefGrid';
+import CollarOptionsGrid from '@/components/CollarOptionsGrid';
  
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -118,19 +120,7 @@ export default async function ProductPage({ params }) {
               <h2>Referensi Desain</h2>
             </div>
           </div>
-          <div className="pdp-design-refs__grid">
-            {product.designReferences.map((src) => (
-              <a
-                key={src}
-                href={src}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pdp-design-refs__item"
-              >
-                <img src={src} alt={`Referensi desain ${product.name}`} />
-              </a>
-            ))}
-          </div>
+          <DesignRefGrid images={product.designReferences} productName={product.name} />
         </section>
       )}
 
@@ -143,25 +133,10 @@ export default async function ProductPage({ params }) {
             </div>
           </div>
           <p className="pdp-collar-options__intro">
-            Sebutkan kode kerah pilihanmu (mis. &ldquo;{product.collarOptions[0].label}&rdquo;) ke admin saat
+            Tap foto untuk perbesar, atau tap kode kerah untuk salin &mdash; tinggal paste ke admin saat
             konsultasi desain.
           </p>
-          <div className="pdp-collar-options__grid">
-            {product.collarOptions.map((c) => (
-              <a
-                key={c.url}
-                href={c.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pdp-collar-options__item"
-              >
-                <span className="pdp-collar-options__photo">
-                  <img src={c.url} alt={c.label} />
-                </span>
-                <span className="pdp-collar-options__label">{c.label}</span>
-              </a>
-            ))}
-          </div>
+          <CollarOptionsGrid options={product.collarOptions} />
         </section>
       )}
  
