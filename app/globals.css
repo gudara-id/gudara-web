@@ -453,7 +453,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
  
 .pdp-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px;align-items:start;}
  
-.pdp-gallery{display:flex;flex-direction:column;gap:12px;position:sticky;top:96px;}
+.pdp-gallery{display:flex;flex-direction:column;gap:12px;position:sticky;top:96px;z-index:2;}
 .pdp-gallery__main{aspect-ratio:4/5;background:var(--surface);overflow:visible;position:relative;cursor:zoom-in;}
 .pdp-gallery__main img{width:100%;height:100%;object-fit:cover;}
 .pdp-gallery__lens{
