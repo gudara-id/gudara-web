@@ -69,7 +69,12 @@ export default async function ProductPage({ params }) {
     },
     {
       title: 'Cara Perawatan',
-      body: <p>Cuci dengan air dingin, jangan disikat pada bagian sablon/emboss, jemur terbalik di tempat teduh.</p>,
+      body: (
+        <p>
+          {product.careInstructions ||
+            'Cuci dengan air dingin, jangan disikat pada bagian sablon/emboss, jemur terbalik di tempat teduh.'}
+        </p>
+      ),
     },
   ];
  
