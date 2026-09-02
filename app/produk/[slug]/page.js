@@ -109,6 +109,37 @@ export default async function ProductPage({ params }) {
           </div>
         </div>
       </div>
+
+      {product.collarOptions.length > 0 && (
+        <section className="pdp-collar-options">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Custom Kerah</span>
+              <h2>Pilihan Kerah</h2>
+            </div>
+          </div>
+          <p className="pdp-collar-options__intro">
+            Sebutkan kode kerah pilihanmu (mis. &ldquo;{product.collarOptions[0].label}&rdquo;) ke admin saat
+            konsultasi desain.
+          </p>
+          <div className="pdp-collar-options__grid">
+            {product.collarOptions.map((c) => (
+              <a
+                key={c.url}
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pdp-collar-options__item"
+              >
+                <span className="pdp-collar-options__photo">
+                  <img src={c.url} alt={c.label} />
+                </span>
+                <span className="pdp-collar-options__label">{c.label}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
  
       {related.length > 0 && (
         <section className="pdp-related">
