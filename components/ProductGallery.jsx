@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 
 const ZOOM_LEVEL = 2.5; // how much the lens panel magnifies
 const LENS_SIZE_PCT = 100 / ZOOM_LEVEL; // lens box size as % of the image
+const SWIPE_THRESHOLD = 40; // px — minimum horizontal drag to count as a swipe
 
 export default function ProductGallery({ images, name }) {
   const [active, setActive] = useState(0);
+  const [brokenThumbs, setBrokenThumbs] = useState({});
   const hasMultiple = images.length > 1;
   const mainRef = useRef(null);
 
@@ -18,14 +21,10 @@ export default function ProductGallery({ images, name }) {
   // Fullscreen tap-to-view (mobile / touch devices without a mouse).
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Only devices with a real mouse (hover + fine pointer) get the
-  // marketplace-style zoom lens. On touch devices this stays false, so
-  // taps never leave a lens box "stuck" on the photo (see handleTouchStart).
-  const [canHoverZoom, setCanHoverZoom] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
-    setCanHoverZoom(mq.matches);
-  }, []);
+  // Touch/swipe tracking — refs, not state, since they're read/written within
+  // the same gesture and shouldn't trigger re-renders.
+  const touchStartRef = useRef(null); // {x, y} or null when the touch started on a button
+  const justSwipedRef = useRef(false); // true right after a real swipe, to swallow the ghost click that follows
 
   function goPrev() {
     setActive((i) => (i - 1 + images.length) % images.length);
@@ -34,26 +33,39 @@ export default function ProductGallery({ images, name }) {
     setActive((i) => (i + 1) % images.length);
   }
 
-  // Touch swipe support (mobile "geser" gesture).
-  // A ref (not a plain variable) so the value set on touchstart survives
-  // through to touchend even if something else re-renders the component
-  // in between — a plain local variable gets reset to 0 on every render
-  // and silently breaks the swipe.
-  const touchStartXRef = useRef(0);
   function handleTouchStart(e) {
-    touchStartXRef.current = e.touches[0].clientX;
-    // Make sure no leftover zoom lens is showing on touch devices.
-    if (isZooming) setIsZooming(false);
+    // Ignore touches that start on a button (prev/next arrows) — those have
+    // their own onClick and shouldn't also be interpreted as a swipe.
+    if (e.target.closest('button')) {
+      touchStartRef.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
   }
+
   function handleTouchEnd(e) {
-    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
-    if (Math.abs(diff) < 40) return;
-    if (diff > 0) goPrev();
-    else goNext();
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+
+    const t = e.changedTouches[0];
+    const diffX = t.clientX - start.x;
+    const diffY = t.clientY - start.y;
+
+    // Only treat it as a swipe if the drag was mostly horizontal and past
+    // the threshold — otherwise this was a vertical scroll or a plain tap.
+    if (Math.abs(diffX) >= SWIPE_THRESHOLD && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 0) goPrev();
+      else goNext();
+      // A swipe fires a synthetic "click" right after touchend on most mobile
+      // browsers — without this flag that ghost click would immediately pop
+      // the lightbox open right after swiping to the next photo.
+      justSwipedRef.current = true;
+    }
   }
 
   function handleMouseMove(e) {
-    if (!canHoverZoom) return;
     const rect = mainRef.current.getBoundingClientRect();
     const rawX = ((e.clientX - rect.left) / rect.width) * 100;
     const rawY = ((e.clientY - rect.top) / rect.height) * 100;
@@ -67,10 +79,26 @@ export default function ProductGallery({ images, name }) {
     setBgPos({ x: clampedX, y: clampedY });
   }
 
+  function handleMainClick(e) {
+    if (justSwipedRef.current) {
+      justSwipedRef.current = false;
+      return;
+    }
+    // Belt-and-suspenders: a tap on the arrow buttons already stops
+    // propagation on its own onClick, but skip here too just in case.
+    if (e.target.closest('button')) return;
+    setLightboxOpen(true);
+  }
+
   function closeLightbox() {
     setLightboxOpen(false);
   }
 
+  function markThumbBroken(i) {
+    setBrokenThumbs((prev) => ({ ...prev, [i]: true }));
+  }
+
+  // Close lightbox with Escape, lock page scroll while it's open.
   useEffect(() => {
     if (!lightboxOpen) return;
     function handleKey(e) {
@@ -92,16 +120,30 @@ export default function ProductGallery({ images, name }) {
       <div
         ref={mainRef}
         className="pdp-gallery__main"
-        onTouchStart={handleTouchStart}
+        onTouchStart={hasMultiple ? handleTouchStart : undefined}
         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
-        onMouseEnter={() => canHoverZoom && setIsZooming(true)}
-        onMouseLeave={() => canHoverZoom && setIsZooming(false)}
+        onMouseEnter={() => setIsZooming(true)}
+        onMouseLeave={() => setIsZooming(false)}
         onMouseMove={handleMouseMove}
-        onClick={() => setLightboxOpen(true)}
+        onClick={handleMainClick}
         role="button"
         aria-label="Perbesar foto produk"
       >
-        <img src={images[active]} alt={name} />
+        <Image
+          src={images[active]}
+          alt={name}
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          // Foto pertama adalah LCP candidate (langsung kelihatan pas buka
+          // halaman produk) — priority bikin Next.js load-nya duluan tanpa
+          // nunggu lazy-load, sisanya (kalau ganti foto lewat thumbnail)
+          // tetap dioptimasi/di-resize seperti biasa.
+          priority={active === 0}
+          style={{ objectFit: 'cover' }}
+          onError={(e) => {
+            e.currentTarget.style.opacity = '0';
+          }}
+        />
 
         {isZooming && (
           <div
@@ -162,16 +204,25 @@ export default function ProductGallery({ images, name }) {
 
       {hasMultiple && (
         <div className="pdp-gallery__thumbs">
-          {images.map((src, i) => (
-            <button
-              key={src + i}
-              className={`pdp-gallery__thumb${i === active ? ' is-active' : ''}`}
-              onClick={() => setActive(i)}
-              aria-label={`Lihat foto ${i + 1}`}
-            >
-              <img src={src} alt="" />
-            </button>
-          ))}
+          {images.map((src, i) =>
+            brokenThumbs[i] ? null : (
+              <button
+                key={src + i}
+                className={`pdp-gallery__thumb${i === active ? ' is-active' : ''}`}
+                onClick={() => setActive(i)}
+                aria-label={`Lihat foto ${i + 1}`}
+              >
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="76px"
+                  style={{ objectFit: 'cover' }}
+                  onError={() => markThumbBroken(i)}
+                />
+              </button>
+            )
+          )}
         </div>
       )}
 
@@ -189,7 +240,12 @@ export default function ProductGallery({ images, name }) {
             &times;
           </button>
 
-          <div className="pdp-lightbox__stage" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pdp-lightbox__stage"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={hasMultiple ? handleTouchStart : undefined}
+            onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+          >
             <img src={images[active]} alt={name} className="pdp-lightbox__img" />
           </div>
 

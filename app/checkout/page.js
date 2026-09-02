@@ -140,11 +140,11 @@ export default function CheckoutPage() {
       window.snap.pay(data.snapToken, {
         onSuccess: () => {
           clearCart();
-          router.push('/');
+          router.push(`/lacak?order=${encodeURIComponent(data.orderNumber)}`);
         },
         onPending: () => {
           clearCart();
-          router.push('/');
+          router.push(`/lacak?order=${encodeURIComponent(data.orderNumber)}`);
         },
         onError: () => {
           setErrorMsg('Pembayaran gagal. Coba lagi.');

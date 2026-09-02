@@ -1,0 +1,191 @@
+diff --git a/components/AddToCartSection.jsx b/components/AddToCartSection.jsx
+index 7f34cb9..d4a6035 100644
+--- a/components/AddToCartSection.jsx
++++ b/components/AddToCartSection.jsx
+@@ -7,16 +7,22 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
+   const { addToCart } = useCart();
+   const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
+   const [selectedSize, setSelectedSize] = useState(null);
++  // Inline message instead of window.alert(): alert() is commonly blocked or
++  // silently swallowed inside in-app browsers (Instagram/TikTok/WhatsApp),
++  // which is where most shoppers land from — so a blocked alert made
++  // "Tambah ke Keranjang" look completely dead with zero feedback.
++  const [notice, setNotice] = useState('');
+ 
+   function handleAdd() {
+     if (product.colors.length > 0 && !selectedColor) {
+-      alert('Pilih warna dulu ya.');
++      setNotice('Pilih warna dulu ya.');
+       return;
+     }
+     if (!selectedSize) {
+-      alert('Pilih ukuran dulu ya.');
++      setNotice('Pilih ukuran dulu ya.');
+       return;
+     }
++    setNotice('');
+     addToCart({
+       id: product.id,
+       name: product.name,
+@@ -39,7 +45,10 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
+               <button
+                 key={c}
+                 className={`pdp-swatch${selectedColor === c ? ' is-active' : ''}`}
+-                onClick={() => setSelectedColor(c)}
++                onClick={() => {
++                  setSelectedColor(c);
++                  setNotice('');
++                }}
+                 type="button"
+               >
+                 {c}
+@@ -59,7 +68,10 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
+             <button
+               key={s}
+               className={`pdp-size-btn${selectedSize === s ? ' is-active' : ''}`}
+-              onClick={() => setSelectedSize(s)}
++              onClick={() => {
++                setSelectedSize(s);
++                setNotice('');
++              }}
+             >
+               {s}
+             </button>
+@@ -67,6 +79,10 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
+         </div>
+       </div>
+ 
++      {notice && (
++        <p style={{ color: '#C6302B', fontSize: 13, marginBottom: 12 }}>{notice}</p>
++      )}
++
+       {!hideAddToCart && (
+         <button
+           className="btn btn--dark"
+diff --git a/components/CartDrawer.jsx b/components/CartDrawer.jsx
+index 16eb21d..218bc7c 100644
+--- a/components/CartDrawer.jsx
++++ b/components/CartDrawer.jsx
+@@ -1,5 +1,6 @@
+ 'use client';
+ 
++import { useEffect } from 'react';
+ import Link from 'next/link';
+ import { useCart } from '@/lib/cart-context';
+ import { formatRp } from '@/lib/format';
+@@ -7,6 +8,18 @@ import { formatRp } from '@/lib/format';
+ export default function CartDrawer() {
+   const { cart, cartTotal, drawerOpen, closeDrawer, updateQty, removeLine } = useCart();
+ 
++  // Same background-scroll lock as the mobile nav drawer — a fixed-position
++  // drawer over a still-scrollable page is the classic reason a drawer
++  // "doesn't work" on mobile even though it technically opened.
++  useEffect(() => {
++    if (!drawerOpen) return;
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => {
++      document.body.style.overflow = prevOverflow;
++    };
++  }, [drawerOpen]);
++
+   return (
+     <>
+       <div
+diff --git a/components/Header.jsx b/components/Header.jsx
+index 3ff976c..25d89fa 100644
+--- a/components/Header.jsx
++++ b/components/Header.jsx
+@@ -1,6 +1,6 @@
+ 'use client';
+ 
+-import { useState } from 'react';
++import { useEffect, useState } from 'react';
+ import Link from 'next/link';
+ import { useCart } from '@/lib/cart-context';
+ 
+@@ -15,6 +15,19 @@ export default function Header() {
+   const [megaOpen, setMegaOpen] = useState(false);
+   const [mobileOpen, setMobileOpen] = useState(false);
+ 
++  // Lock background scroll while the mobile drawer is open — without this,
++  // the page behind keeps scrolling (especially on iOS Safari) and fights
++  // with the fixed-position drawer, which makes it look like it's not
++  // opening/working at all.
++  useEffect(() => {
++    if (!mobileOpen) return;
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => {
++      document.body.style.overflow = prevOverflow;
++    };
++  }, [mobileOpen]);
++
+   return (
+     <>
+       <div className="marquee">
+diff --git a/components/ProductGallery.jsx b/components/ProductGallery.jsx
+index 06ecd6a..715ade1 100644
+--- a/components/ProductGallery.jsx
++++ b/components/ProductGallery.jsx
+@@ -18,6 +18,15 @@ export default function ProductGallery({ images, name }) {
+   // Fullscreen tap-to-view (mobile / touch devices without a mouse).
+   const [lightboxOpen, setLightboxOpen] = useState(false);
+ 
++  // Only devices with a real mouse (hover + fine pointer) get the
++  // marketplace-style zoom lens. On touch devices this stays false, so
++  // taps never leave a lens box "stuck" on the photo (see handleTouchStart).
++  const [canHoverZoom, setCanHoverZoom] = useState(false);
++  useEffect(() => {
++    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
++    setCanHoverZoom(mq.matches);
++  }, []);
++
+   function goPrev() {
+     setActive((i) => (i - 1 + images.length) % images.length);
+   }
+@@ -25,19 +34,26 @@ export default function ProductGallery({ images, name }) {
+     setActive((i) => (i + 1) % images.length);
+   }
+ 
+-  // Touch swipe support (mobile "geser" gesture)
+-  let touchStartX = 0;
++  // Touch swipe support (mobile "geser" gesture).
++  // A ref (not a plain variable) so the value set on touchstart survives
++  // through to touchend even if something else re-renders the component
++  // in between — a plain local variable gets reset to 0 on every render
++  // and silently breaks the swipe.
++  const touchStartXRef = useRef(0);
+   function handleTouchStart(e) {
+-    touchStartX = e.touches[0].clientX;
++    touchStartXRef.current = e.touches[0].clientX;
++    // Make sure no leftover zoom lens is showing on touch devices.
++    if (isZooming) setIsZooming(false);
+   }
+   function handleTouchEnd(e) {
+-    const diff = e.changedTouches[0].clientX - touchStartX;
++    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+     if (Math.abs(diff) < 40) return;
+     if (diff > 0) goPrev();
+     else goNext();
+   }
+ 
+   function handleMouseMove(e) {
++    if (!canHoverZoom) return;
+     const rect = mainRef.current.getBoundingClientRect();
+     const rawX = ((e.clientX - rect.left) / rect.width) * 100;
+     const rawY = ((e.clientY - rect.top) / rect.height) * 100;
+@@ -76,10 +92,10 @@ export default function ProductGallery({ images, name }) {
+       <div
+         ref={mainRef}
+         className="pdp-gallery__main"
+-        onTouchStart={hasMultiple ? handleTouchStart : undefined}
++        onTouchStart={handleTouchStart}
+         onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+-        onMouseEnter={() => setIsZooming(true)}
+-        onMouseLeave={() => setIsZooming(false)}
++        onMouseEnter={() => canHoverZoom && setIsZooming(true)}
++        onMouseLeave={() => canHoverZoom && setIsZooming(false)}
+         onMouseMove={handleMouseMove}
+         onClick={() => setLightboxOpen(true)}
+         role="button"

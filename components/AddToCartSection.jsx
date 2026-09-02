@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
+import SizeGuideModal from './SizeGuideModal';
 
 export default function AddToCartSection({ product, hideAddToCart = false }) {
   const { addToCart } = useCart();
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
   const [selectedSize, setSelectedSize] = useState(null);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   // Inline message instead of window.alert(): alert() is commonly blocked or
   // silently swallowed inside in-app browsers (Instagram/TikTok/WhatsApp),
   // which is where most shoppers land from — so a blocked alert made
@@ -61,7 +63,16 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
       <div className="pdp-block">
         <div className="pdp-block__head">
           <div className="eyebrow">Ukuran</div>
-          <a href="#" className="pdp-size-guide">Panduan Ukuran</a>
+          {product.sizeChartImage && (
+            <button
+              type="button"
+              className="pdp-size-guide"
+              style={{ background: 'none', border: 0, cursor: 'pointer' }}
+              onClick={() => setSizeGuideOpen(true)}
+            >
+              Panduan Ukuran
+            </button>
+          )}
         </div>
         <div className="pdp-sizes">
           {product.sizes.map((s) => (
@@ -117,6 +128,10 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
           <span className="pdp-info-row__chevron">&rsaquo;</span>
         </div>
       </div>
+
+      {sizeGuideOpen && product.sizeChartImage && (
+        <SizeGuideModal imageUrl={product.sizeChartImage} onClose={() => setSizeGuideOpen(false)} />
+      )}
     </>
   );
 }

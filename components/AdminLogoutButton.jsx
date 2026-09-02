@@ -16,10 +16,10 @@ export default function AdminLogoutButton() {
 
   return (
     <button
-      className="btn"
+      className="btn btn--outline"
       onClick={handleLogout}
       disabled={loading}
-      style={{ fontSize: 13, padding: '6px 14px' }}
+      style={{ fontSize: 13, padding: '8px 16px', color: 'var(--ink)', borderColor: 'var(--ink)' }}
     >
       {loading ? 'Keluar...' : 'Keluar'}
     </button>

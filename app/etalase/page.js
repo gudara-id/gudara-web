@@ -16,7 +16,7 @@ export default async function EtalasePage({ searchParams }) {
   const kat = sp?.kat;
   const q = sp?.q?.trim() || '';
   const sort = VALID_SORTS.includes(sp?.sort) ? sp.sort : 'newest';
-  const products = await getProductRow(kat, 24, sort, q);
+  const products = await getProductRow(kat, 24, sort, q, { excludeCustom: true });
   const title = q ? `Hasil untuk "${q}"` : kat ? titleCase(kat) : 'Semua Produk';
  
   return (

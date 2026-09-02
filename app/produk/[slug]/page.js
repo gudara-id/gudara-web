@@ -8,6 +8,7 @@ import AddToCartSection from '@/components/AddToCartSection';
 import ProductGallery from '@/components/ProductGallery';
 import ProductAccordion from '@/components/ProductAccordion';
 import ProductGrid from '@/components/ProductGrid';
+import ReferenceDesignSection from '@/components/ReferenceDesignSection';
  
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -78,13 +79,15 @@ export default async function ProductPage({ params }) {
             </div>
           </div>
  
-          <AddToCartSection product={product} />
+          <AddToCartSection product={product} hideAddToCart={product.kat === 'custom'} />
           <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
  
           <ProductAccordion sections={accordionSections} />
         </div>
       </div>
- 
+
+      <ReferenceDesignSection images={product.referenceImages} />
+
       {related.length > 0 && (
         <section className="pdp-related">
           <div className="section-head">
@@ -94,7 +97,7 @@ export default async function ProductPage({ params }) {
             </div>
             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
           </div>
-          <ProductGrid products={related} />
+          <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
         </section>
       )}
  
