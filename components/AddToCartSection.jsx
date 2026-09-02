@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
 
-export default function AddToCartSection({ product, hideAddToCart = false }) {
+export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
   const { addToCart } = useCart();
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
   const [selectedSize, setSelectedSize] = useState(null);
@@ -61,7 +61,13 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
       <div className="pdp-block">
         <div className="pdp-block__head">
           <div className="eyebrow">Ukuran</div>
-          <a href="#" className="pdp-size-guide">Panduan Ukuran</a>
+          {sizeChartUrl ? (
+            <a href={sizeChartUrl} target="_blank" rel="noopener noreferrer" className="pdp-size-guide">
+              Panduan Ukuran
+            </a>
+          ) : (
+            <a href="#panduan-ukuran" className="pdp-size-guide">Panduan Ukuran</a>
+          )}
         </div>
         <div className="pdp-sizes">
           {product.sizes.map((s) => (

@@ -1,0 +1,395 @@
+diff --git a/app/globals.css b/app/globals.css
+index 7c962fa..95299dd 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -626,6 +626,25 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   text-align:center;margin-top:-4px;margin-bottom:8px;
+ }
+ .pdp-related{max-width:var(--container);margin:80px auto 0;padding:0 24px;}
++
++.pdp-gallery__fallback{
++  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
++  background:var(--surface);color:var(--ink-soft);
++  font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.04em;
++  text-align:center;padding:24px;
++}
++
++.pdp-size-chart-img{width:100%;height:auto;border:1px solid var(--line);margin-top:4px;}
++
++.pdp-design-refs__grid{
++  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;
++}
++.pdp-design-refs__item{
++  display:block;aspect-ratio:4/5;overflow:hidden;background:var(--surface);
++  border:1px solid var(--line);
++}
++.pdp-design-refs__item img{width:100%;height:100%;object-fit:cover;transition:transform .2s;}
++.pdp-design-refs__item:hover img{transform:scale(1.04);}
+  
+ /* ---- Jurnal (berita/event/portofolio) ---- */
+ .journal-grid{
+diff --git a/app/produk/[slug]/page.js b/app/produk/[slug]/page.js
+index 1bfcbba..6e0f4de 100644
+--- a/app/produk/[slug]/page.js
++++ b/app/produk/[slug]/page.js
+@@ -25,6 +25,17 @@ export default async function ProductPage({ params }) {
+   const featureList = toFeatureList(product.materialSpec);
+  
+   const accordionSections = [
++    // Deskripsi umum produk (kolom `description`) — cuma ditampilkan kalau
++    // memang sudah diisi di Supabase, supaya produk lama yang belum diisi
++    // tidak menampilkan section kosong.
++    ...(product.description
++      ? [
++          {
++            title: 'Deskripsi Produk',
++            body: <p style={{ whiteSpace: 'pre-line' }}>{product.description}</p>,
++          },
++        ]
++      : []),
+     {
+       title: 'Spesifikasi Material',
+       body: featureList ? (
+@@ -37,6 +48,14 @@ export default async function ProductPage({ params }) {
+         <p>{product.materialSpec || 'Detail material belum tersedia untuk produk ini.'}</p>
+       ),
+     },
++    {
++      title: 'Panduan Ukuran',
++      body: product.sizeChartUrl ? (
++        <img src={product.sizeChartUrl} alt={`Panduan ukuran ${product.name}`} className="pdp-size-chart-img" />
++      ) : (
++        <p>Panduan ukuran belum tersedia untuk produk ini — chat admin untuk info detail ukuran.</p>
++      ),
++    },
+     {
+       title: 'Pengiriman & Retur',
+       body: (
+@@ -78,10 +97,16 @@ export default async function ProductPage({ params }) {
+             </div>
+           </div>
+  
+-          <AddToCartSection product={product} hideAddToCart={product.kat === 'custom'} />
++          <AddToCartSection
++            product={product}
++            hideAddToCart={product.kat === 'custom'}
++            sizeChartUrl={product.sizeChartUrl}
++          />
+           <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
+  
+-          <ProductAccordion sections={accordionSections} />
++          <div id="panduan-ukuran">
++            <ProductAccordion sections={accordionSections} />
++          </div>
+         </div>
+       </div>
+  
+@@ -98,6 +123,30 @@ export default async function ProductPage({ params }) {
+         </section>
+       )}
+  
++      {product.designReferences.length > 0 && (
++        <section className="pdp-related pdp-design-refs">
++          <div className="section-head">
++            <div>
++              <span className="eyebrow">Contoh Hasil Jadi</span>
++              <h2>Referensi Desain</h2>
++            </div>
++          </div>
++          <div className="pdp-design-refs__grid">
++            {product.designReferences.map((src) => (
++              <a
++                key={src}
++                href={src}
++                target="_blank"
++                rel="noopener noreferrer"
++                className="pdp-design-refs__item"
++              >
++                <img src={src} alt={`Referensi desain ${product.name}`} />
++              </a>
++            ))}
++          </div>
++        </section>
++      )}
++ 
+       <div className="pdp-sticky-cta">
+         <div className="pdp-sticky-cta__info">
+           <span className="pdp-sticky-cta__name">{product.name}</span>
+diff --git a/components/AddToCartSection.jsx b/components/AddToCartSection.jsx
+index d4a6035..095d1b6 100644
+--- a/components/AddToCartSection.jsx
++++ b/components/AddToCartSection.jsx
+@@ -3,7 +3,7 @@
+ import { useState } from 'react';
+ import { useCart } from '@/lib/cart-context';
+ 
+-export default function AddToCartSection({ product, hideAddToCart = false }) {
++export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
+   const { addToCart } = useCart();
+   const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
+   const [selectedSize, setSelectedSize] = useState(null);
+@@ -61,7 +61,13 @@ export default function AddToCartSection({ product, hideAddToCart = false }) {
+       <div className="pdp-block">
+         <div className="pdp-block__head">
+           <div className="eyebrow">Ukuran</div>
+-          <a href="#" className="pdp-size-guide">Panduan Ukuran</a>
++          {sizeChartUrl ? (
++            <a href={sizeChartUrl} target="_blank" rel="noopener noreferrer" className="pdp-size-guide">
++              Panduan Ukuran
++            </a>
++          ) : (
++            <a href="#panduan-ukuran" className="pdp-size-guide">Panduan Ukuran</a>
++          )}
+         </div>
+         <div className="pdp-sizes">
+           {product.sizes.map((s) => (
+diff --git a/components/ProductGallery.jsx b/components/ProductGallery.jsx
+index 2928674..dabdc3c 100644
+--- a/components/ProductGallery.jsx
++++ b/components/ProductGallery.jsx
+@@ -8,8 +8,11 @@ const SWIPE_THRESHOLD = 40; // px — minimum horizontal drag to count as a swip
+ 
+ export default function ProductGallery({ images, name }) {
+   const [active, setActive] = useState(0);
+-  const [brokenThumbs, setBrokenThumbs] = useState({});
++  // Satu state dipakai bareng buat foto utama & thumbnail — kalau sebuah URL
++  // gagal dimuat (404/rusak), ditandai di sini sekali dan tidak dicoba lagi.
++  const [brokenImages, setBrokenImages] = useState({});
+   const hasMultiple = images.length > 1;
++  const allBroken = images.length > 0 && images.every((_, i) => brokenImages[i]);
+   const mainRef = useRef(null);
+ 
+   // Marketplace-style magnifier: lens box on the image + zoomed panel beside it.
+@@ -25,11 +28,42 @@ export default function ProductGallery({ images, name }) {
+   const touchStartRef = useRef(null); // {x, y} or null when the touch started on a button
+   const justSwipedRef = useRef(false); // true right after a real swipe, to swallow the ghost click that follows
+ 
++  // Cari index foto berikutnya (searah `direction`, 1 atau -1) yang belum
++  // ketahuan rusak — jadi tombol prev/next tidak pernah "mendarat" lagi di
++  // foto yang sudah gagal dimuat sebelumnya (dulu ini yang bikin klik "back"
++  // nampilin kotak putih kosong).
++  function nextWorkingIndex(from, direction) {
++    for (let step = 1; step <= images.length; step++) {
++      const i = (from + direction * step + images.length) % images.length;
++      if (!brokenImages[i]) return i;
++    }
++    return from;
++  }
++
+   function goPrev() {
+-    setActive((i) => (i - 1 + images.length) % images.length);
++    setActive((i) => nextWorkingIndex(i, -1));
+   }
+   function goNext() {
+-    setActive((i) => (i + 1) % images.length);
++    setActive((i) => nextWorkingIndex(i, 1));
++  }
++
++  function markBroken(i) {
++    setBrokenImages((prev) => {
++      if (prev[i]) return prev;
++      const next = { ...prev, [i]: true };
++      // Kalau foto yang lagi aktif ternyata yang gagal load, langsung geser
++      // ke foto valid berikutnya alih-alih diam nampilin area kosong.
++      if (i === active) {
++        for (let step = 1; step <= images.length; step++) {
++          const j = (i + step) % images.length;
++          if (!next[j]) {
++            setActive(j);
++            break;
++          }
++        }
++      }
++      return next;
++    });
+   }
+ 
+   function handleTouchStart(e) {
+@@ -86,6 +120,7 @@ export default function ProductGallery({ images, name }) {
+     // Belt-and-suspenders: a tap on the arrow buttons already stops
+     // propagation on its own onClick, but skip here too just in case.
+     if (e.target.closest('button')) return;
++    if (allBroken) return;
+     setLightboxOpen(true);
+   }
+ 
+@@ -93,10 +128,6 @@ export default function ProductGallery({ images, name }) {
+     setLightboxOpen(false);
+   }
+ 
+-  function markThumbBroken(i) {
+-    setBrokenThumbs((prev) => ({ ...prev, [i]: true }));
+-  }
+-
+   // Close lightbox with Escape, lock page scroll while it's open.
+   useEffect(() => {
+     if (!lightboxOpen) return;
+@@ -128,15 +159,13 @@ export default function ProductGallery({ images, name }) {
+         role="button"
+         aria-label="Perbesar foto produk"
+       >
+-        <img
+-          src={images[active]}
+-          alt={name}
+-          onError={(e) => {
+-            e.currentTarget.style.opacity = '0';
+-          }}
+-        />
++        {allBroken ? (
++          <div className="pdp-gallery__fallback">Foto produk belum tersedia</div>
++        ) : (
++          <img src={images[active]} alt={name} onError={() => markBroken(active)} />
++        )}
+ 
+-        {isZooming && (
++        {isZooming && !allBroken && (
+           <div
+             className="pdp-gallery__lens"
+             style={{
+@@ -181,7 +210,7 @@ export default function ProductGallery({ images, name }) {
+         )}
+ 
+         {/* Zoomed-in panel — shown next to the image while hovering, like on marketplace PDPs */}
+-        {isZooming && (
++        {isZooming && !allBroken && (
+           <div
+             className="pdp-gallery__zoom-panel"
+             style={{
+@@ -196,14 +225,14 @@ export default function ProductGallery({ images, name }) {
+       {hasMultiple && (
+         <div className="pdp-gallery__thumbs">
+           {images.map((src, i) =>
+-            brokenThumbs[i] ? null : (
++            brokenImages[i] ? null : (
+               <button
+                 key={src + i}
+                 className={`pdp-gallery__thumb${i === active ? ' is-active' : ''}`}
+                 onClick={() => setActive(i)}
+                 aria-label={`Lihat foto ${i + 1}`}
+               >
+-                <img src={src} alt="" onError={() => markThumbBroken(i)} />
++                <img src={src} alt="" onError={() => markBroken(i)} />
+               </button>
+             )
+           )}
+diff --git a/lib/format.js b/lib/format.js
+index a374642..fe8a1c3 100644
+--- a/lib/format.js
++++ b/lib/format.js
+@@ -6,6 +6,7 @@ const KATEGORI_LABEL = {
+   daily: 'Daily & Casual',
+   sport: 'Sport Authentic',
+   basic: 'Basic',
++  custom: 'Custom Kits',
+ };
+  
+ export function titleCase(kat) {
+diff --git a/lib/products.js b/lib/products.js
+index 42aae38..e469924 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -10,6 +10,43 @@ function isValidImageUrl(url) {
+   return typeof url === 'string' && url.trim().length > 0 && !url.startsWith('blob:');
+ }
+ 
++// Bucket 'product-images' di Supabase Storage isinya campur: foto produk asli
++// (depan/samping/belakang), tapi juga file pendukung yang KADANG ikut ke-insert
++// sebagai baris product_images karena belum ada admin-upload panel — semuanya
++// masih ditambahkan manual lewat SQL/Table Editor (lihat folder 'custom' di
++// storage: size-chart.jpg, folder "REFERENSI DESAIN", file "MATERI ...").
++// Tiga helper di bawah memisahkan baris-baris itu berdasarkan nama file,
++// supaya:
++//   1. Dokumen non-foto (pdf/docx/txt materi produk) TIDAK PERNAH nyasar ke
++//      galeri foto (ini penyebab "foto ke-3 tidak muncul / blank putih" —
++//      galeri coba nampilin file yang bukan gambar).
++//   2. size-chart.jpg dipisah ke bagian "Panduan Ukuran", bukan ikut jadi
++//      foto galeri.
++//   3. Foto di folder "REFERENSI DESAIN" dipisah ke bagian "Referensi Desain".
++const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
++const SIZE_CHART_RE = /size[-_ ]?chart/i;
++const DESIGN_REFERENCE_RE = /referensi/i; // cocok dengan folder "REFERENSI DESAIN"
++
++function isDisplayableImageFile(url) {
++  return IMAGE_EXTENSION_RE.test(url);
++}
++function isSizeChartFile(url) {
++  return SIZE_CHART_RE.test(url);
++}
++function isDesignReferenceFile(url) {
++  return DESIGN_REFERENCE_RE.test(url);
++}
++// Foto yang boleh masuk galeri utama: harus file gambar beneran, dan bukan
++// size-chart / referensi desain (dua itu ditampilkan di section lain).
++function isGalleryPhoto(img) {
++  return (
++    isValidImageUrl(img.url) &&
++    isDisplayableImageFile(img.url) &&
++    !isSizeChartFile(img.url) &&
++    !isDesignReferenceFile(img.url)
++  );
++}
++
+ function computeOff(price, comparePrice) {
+   if (!comparePrice || comparePrice <= price) return null;
+   const pct = Math.round((1 - price / comparePrice) * 100);
+@@ -18,7 +55,7 @@ function computeOff(price, comparePrice) {
+ 
+ function normalizeCard(p) {
+   const images = (p.product_images || [])
+-    .filter((img) => isValidImageUrl(img.url))
++    .filter(isGalleryPhoto)
+     .slice()
+     .sort((a, b) => a.sort_order - b.sort_order);
+   return {
+@@ -87,7 +124,7 @@ export async function getProductBySlug(slug) {
+   const { data, error } = await supabase
+     .from('products')
+     .select(
+-      'id, slug, name, category, material_spec, price, compare_price, product_images(url, sort_order), product_variants(id, color, size, stock)'
++      'id, slug, name, category, description, material_spec, price, compare_price, product_images(url, sort_order), product_variants(id, color, size, stock)'
+     )
+     .eq('slug', slug)
+     .eq('is_active', true)
+@@ -98,19 +135,28 @@ export async function getProductBySlug(slug) {
+     return null;
+   }
+  
+-  const images = (data.product_images || [])
++  const allImages = (data.product_images || [])
+     .filter((img) => isValidImageUrl(img.url))
+     .slice()
+     .sort((a, b) => a.sort_order - b.sort_order);
++
++  // Pisahkan baris product_images jadi tiga kelompok berdasarkan nama file
++  // (lihat helper isGalleryPhoto/isSizeChartFile/isDesignReferenceFile di atas):
++  // foto galeri asli, panduan ukuran, dan referensi desain.
++  const galleryImages = allImages.filter(isGalleryPhoto);
++  const sizeChartImage = allImages.find((img) => isSizeChartFile(img.url));
++  const designReferenceImages = allImages.filter((img) => isDesignReferenceFile(img.url));
++
+   const sizes = [...new Set((data.product_variants || []).map((v) => v.size).filter(Boolean))];
+   const colors = [...new Set((data.product_variants || []).map((v) => v.color).filter(Boolean))];
+-  const imageUrls = images.length ? images.map((i) => i.url) : [PLACEHOLDER_IMAGE];
++  const imageUrls = galleryImages.length ? galleryImages.map((i) => i.url) : [PLACEHOLDER_IMAGE];
+  
+   return {
+     id: data.id,
+     slug: data.slug,
+     kat: data.category,
+     name: data.name,
++    description: data.description || null,
+     materialSpec: data.material_spec,
+     price: data.price,
+     old: data.compare_price,
+@@ -119,7 +165,11 @@ export async function getProductBySlug(slug) {
+     // Full ordered gallery — the PDP shows a thumbnail rail when a product
+     // has more than one image, and falls back to a single-image view when
+     // it doesn't (most products only have one placeholder for now).
++    // Sudah dibersihkan dari size-chart & foto referensi desain — itu
++    // ditampilkan di section terpisah (Panduan Ukuran / Referensi Desain).
+     images: imageUrls,
++    sizeChartUrl: sizeChartImage?.url || null,
++    designReferences: designReferenceImages.map((i) => i.url),
+     // Fall back to the prototype's static S/M/L/XL when a product has no
+     // variants seeded yet (seed.sql only seeds variants for basic-tee-man).
+     sizes: sizes.length ? sizes : ['S', 'M', 'L', 'XL'],

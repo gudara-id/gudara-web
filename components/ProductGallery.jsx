@@ -8,8 +8,11 @@ const SWIPE_THRESHOLD = 40; // px — minimum horizontal drag to count as a swip
 
 export default function ProductGallery({ images, name }) {
   const [active, setActive] = useState(0);
-  const [brokenThumbs, setBrokenThumbs] = useState({});
+  // Satu state dipakai bareng buat foto utama & thumbnail — kalau sebuah URL
+  // gagal dimuat (404/rusak), ditandai di sini sekali dan tidak dicoba lagi.
+  const [brokenImages, setBrokenImages] = useState({});
   const hasMultiple = images.length > 1;
+  const allBroken = images.length > 0 && images.every((_, i) => brokenImages[i]);
   const mainRef = useRef(null);
 
   // Marketplace-style magnifier: lens box on the image + zoomed panel beside it.
@@ -25,11 +28,42 @@ export default function ProductGallery({ images, name }) {
   const touchStartRef = useRef(null); // {x, y} or null when the touch started on a button
   const justSwipedRef = useRef(false); // true right after a real swipe, to swallow the ghost click that follows
 
+  // Cari index foto berikutnya (searah `direction`, 1 atau -1) yang belum
+  // ketahuan rusak — jadi tombol prev/next tidak pernah "mendarat" lagi di
+  // foto yang sudah gagal dimuat sebelumnya (dulu ini yang bikin klik "back"
+  // nampilin kotak putih kosong).
+  function nextWorkingIndex(from, direction) {
+    for (let step = 1; step <= images.length; step++) {
+      const i = (from + direction * step + images.length) % images.length;
+      if (!brokenImages[i]) return i;
+    }
+    return from;
+  }
+
   function goPrev() {
-    setActive((i) => (i - 1 + images.length) % images.length);
+    setActive((i) => nextWorkingIndex(i, -1));
   }
   function goNext() {
-    setActive((i) => (i + 1) % images.length);
+    setActive((i) => nextWorkingIndex(i, 1));
+  }
+
+  function markBroken(i) {
+    setBrokenImages((prev) => {
+      if (prev[i]) return prev;
+      const next = { ...prev, [i]: true };
+      // Kalau foto yang lagi aktif ternyata yang gagal load, langsung geser
+      // ke foto valid berikutnya alih-alih diam nampilin area kosong.
+      if (i === active) {
+        for (let step = 1; step <= images.length; step++) {
+          const j = (i + step) % images.length;
+          if (!next[j]) {
+            setActive(j);
+            break;
+          }
+        }
+      }
+      return next;
+    });
   }
 
   function handleTouchStart(e) {
@@ -86,15 +120,12 @@ export default function ProductGallery({ images, name }) {
     // Belt-and-suspenders: a tap on the arrow buttons already stops
     // propagation on its own onClick, but skip here too just in case.
     if (e.target.closest('button')) return;
+    if (allBroken) return;
     setLightboxOpen(true);
   }
 
   function closeLightbox() {
     setLightboxOpen(false);
-  }
-
-  function markThumbBroken(i) {
-    setBrokenThumbs((prev) => ({ ...prev, [i]: true }));
   }
 
   // Close lightbox with Escape, lock page scroll while it's open.
@@ -128,15 +159,13 @@ export default function ProductGallery({ images, name }) {
         role="button"
         aria-label="Perbesar foto produk"
       >
-        <img
-          src={images[active]}
-          alt={name}
-          onError={(e) => {
-            e.currentTarget.style.opacity = '0';
-          }}
-        />
+        {allBroken ? (
+          <div className="pdp-gallery__fallback">Foto produk belum tersedia</div>
+        ) : (
+          <img src={images[active]} alt={name} onError={() => markBroken(active)} />
+        )}
 
-        {isZooming && (
+        {isZooming && !allBroken && (
           <div
             className="pdp-gallery__lens"
             style={{
@@ -181,7 +210,7 @@ export default function ProductGallery({ images, name }) {
         )}
 
         {/* Zoomed-in panel — shown next to the image while hovering, like on marketplace PDPs */}
-        {isZooming && (
+        {isZooming && !allBroken && (
           <div
             className="pdp-gallery__zoom-panel"
             style={{
@@ -196,14 +225,14 @@ export default function ProductGallery({ images, name }) {
       {hasMultiple && (
         <div className="pdp-gallery__thumbs">
           {images.map((src, i) =>
-            brokenThumbs[i] ? null : (
+            brokenImages[i] ? null : (
               <button
                 key={src + i}
                 className={`pdp-gallery__thumb${i === active ? ' is-active' : ''}`}
                 onClick={() => setActive(i)}
                 aria-label={`Lihat foto ${i + 1}`}
               >
-                <img src={src} alt="" onError={() => markThumbBroken(i)} />
+                <img src={src} alt="" onError={() => markBroken(i)} />
               </button>
             )
           )}

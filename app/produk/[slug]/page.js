@@ -25,6 +25,17 @@ export default async function ProductPage({ params }) {
   const featureList = toFeatureList(product.materialSpec);
  
   const accordionSections = [
+    // Deskripsi umum produk (kolom `description`) — cuma ditampilkan kalau
+    // memang sudah diisi di Supabase, supaya produk lama yang belum diisi
+    // tidak menampilkan section kosong.
+    ...(product.description
+      ? [
+          {
+            title: 'Deskripsi Produk',
+            body: <p style={{ whiteSpace: 'pre-line' }}>{product.description}</p>,
+          },
+        ]
+      : []),
     {
       title: 'Spesifikasi Material',
       body: featureList ? (
@@ -35,6 +46,14 @@ export default async function ProductPage({ params }) {
         </ul>
       ) : (
         <p>{product.materialSpec || 'Detail material belum tersedia untuk produk ini.'}</p>
+      ),
+    },
+    {
+      title: 'Panduan Ukuran',
+      body: product.sizeChartUrl ? (
+        <img src={product.sizeChartUrl} alt={`Panduan ukuran ${product.name}`} className="pdp-size-chart-img" />
+      ) : (
+        <p>Panduan ukuran belum tersedia untuk produk ini — chat admin untuk info detail ukuran.</p>
       ),
     },
     {
@@ -78,10 +97,16 @@ export default async function ProductPage({ params }) {
             </div>
           </div>
  
-          <AddToCartSection product={product} hideAddToCart={product.kat === 'custom'} />
+          <AddToCartSection
+            product={product}
+            hideAddToCart={product.kat === 'custom'}
+            sizeChartUrl={product.sizeChartUrl}
+          />
           <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
  
-          <ProductAccordion sections={accordionSections} />
+          <div id="panduan-ukuran">
+            <ProductAccordion sections={accordionSections} />
+          </div>
         </div>
       </div>
  
@@ -95,6 +120,30 @@ export default async function ProductPage({ params }) {
             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
           </div>
           <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
+        </section>
+      )}
+ 
+      {product.designReferences.length > 0 && (
+        <section className="pdp-related pdp-design-refs">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Contoh Hasil Jadi</span>
+              <h2>Referensi Desain</h2>
+            </div>
+          </div>
+          <div className="pdp-design-refs__grid">
+            {product.designReferences.map((src) => (
+              <a
+                key={src}
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pdp-design-refs__item"
+              >
+                <img src={src} alt={`Referensi desain ${product.name}`} />
+              </a>
+            ))}
+          </div>
         </section>
       )}
  
