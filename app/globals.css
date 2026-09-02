@@ -635,7 +635,13 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 }
 
 .pdp-size-chart-img{width:100%;height:auto;border:1px solid var(--line);margin-top:4px;}
-
+.pdp-care{display:flex;flex-direction:column;gap:14px;}
+.pdp-care p{margin:0;}
+.pdp-care__heading{
+  font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:0.04em;
+  text-transform:uppercase;color:var(--ink);margin-top:6px;
+}
+.pdp-care .pdp-feature-list{margin-top:-4px;}
 .pdp-design-refs__grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
   gap:2px;background:var(--line);

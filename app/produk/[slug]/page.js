@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProductBySlug, getRelatedProducts } from '@/lib/products';
-import { formatRp, titleCase, toFeatureList } from '@/lib/format';
+import { formatRp, titleCase, toFeatureList, parseTextBlocks } from '@/lib/format';
 import AddToCartSection from '@/components/AddToCartSection';
 import ProductGallery from '@/components/ProductGallery';
 import ProductAccordion from '@/components/ProductAccordion';
@@ -25,6 +25,7 @@ export default async function ProductPage({ params }) {
  
   const related = await getRelatedProducts(product.kat, product.slug, 4);
   const featureList = toFeatureList(product.materialSpec);
+  const careBlocks = parseTextBlocks(product.careInstructions);
  
   const accordionSections = [
     // Deskripsi umum produk (kolom `description`) — cuma ditampilkan kalau
@@ -69,12 +70,35 @@ export default async function ProductPage({ params }) {
     },
     {
       title: 'Cara Perawatan',
-      body: (
-        <p>
-          {product.careInstructions ||
-            'Cuci dengan air dingin, jangan disikat pada bagian sablon/emboss, jemur terbalik di tempat teduh.'}
-        </p>
-      ),
+      body:
+        careBlocks.length > 0 ? (
+          <div className="pdp-care">
+            {careBlocks.map((block, i) => {
+              if (block.type === 'heading') {
+                return (
+                  <p className="pdp-care__heading" key={i}>
+                    {block.text}
+                  </p>
+                );
+              }
+              if (block.type === 'list') {
+                return (
+                  <ul className="pdp-feature-list" key={i}>
+                    {block.items.map((item, j) => (
+                      <li key={j}>{item}</li>
+                    ))}
+                  </ul>
+                );
+              }
+              return <p key={i}>{block.text}</p>;
+            })}
+          </div>
+        ) : (
+          <p>
+            {product.careInstructions ||
+              'Cuci dengan air dingin, jangan disikat pada bagian sablon/emboss, jemur terbalik di tempat teduh.'}
+          </p>
+        ),
     },
   ];
  
