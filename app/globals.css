@@ -1017,7 +1017,49 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 }
 .admin-actions .btn{font-size:13px;}
 .admin-msg{width:100%;font-size:13px;margin-top:4px;}
- 
+
+/* -- Admin section nav (Pesanan / Produk switcher) -- */
+.admin-section-nav{
+  display:flex;gap:20px;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;
+}
+.admin-section-nav a{color:var(--ink-soft);padding-bottom:11px;margin-bottom:-13px;border-bottom:2px solid transparent;}
+.admin-section-nav a:hover{color:var(--ink);}
+.admin-section-nav a.is-active{color:var(--ink);border-bottom-color:var(--ink);}
+
+/* -- Admin product form -- */
+.admin-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
+.admin-form-grid .field--full{grid-column:1 / -1;}
+.admin-form-grid .field textarea{min-height:88px;resize:vertical;}
+.field--checkbox{display:flex;align-items:center;gap:8px;}
+.field--checkbox input{width:auto;}
+.field--checkbox label{margin:0;}
+@media (max-width:640px){
+  .admin-form-grid{grid-template-columns:1fr;}
+}
+
+/* -- Admin product thumbnails / image manager -- */
+.admin-thumb{width:44px;height:56px;object-fit:cover;border:1px solid var(--line);background:var(--surface);display:block;}
+.admin-upload-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;}
+.admin-upload-row .field{margin-bottom:0;}
+.admin-image-grid{display:flex;flex-wrap:wrap;gap:14px;}
+.admin-image-tile{position:relative;width:110px;}
+.admin-image-tile img{width:110px;height:138px;object-fit:cover;border:1px solid var(--line);background:var(--surface);display:block;}
+.admin-image-tile__remove{
+  position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,.72);color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;
+}
+.admin-image-tile__remove:hover{background:#C6302B;}
+.admin-image-tile__label{font-size:11px;color:var(--ink-soft);margin-top:4px;word-break:break-word;}
+.admin-image-empty{font-size:13px;color:var(--ink-soft);}
+
+/* -- Admin variants table -- */
+.admin-variant-row{display:grid;grid-template-columns:1fr 1fr 1fr 90px 40px;gap:8px;align-items:center;margin-bottom:8px;}
+.admin-variant-row input{width:100%;padding:8px 10px;border:1px solid var(--line);font-size:13px;font-family:var(--body);}
+@media (max-width:640px){
+  .admin-variant-row{grid-template-columns:1fr 1fr;}
+}
+
 .admin-login-wrap{
   min-height:70vh;display:flex;align-items:center;justify-content:center;
 }

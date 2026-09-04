@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { formatRp } from '@/lib/format';
 import { statusMeta } from '@/lib/orderStatus';
 import AdminLogoutButton from '@/components/AdminLogoutButton';
+import AdminNav from '@/components/AdminNav';
  
 const TABS = ['paid', 'processing', 'shipped', 'completed', 'pending_payment', 'all'];
  
@@ -24,6 +25,7 @@ export default async function AdminOrdersPage({ searchParams }) {
  
   return (
     <section className="wrap admin-shell">
+      <AdminNav />
       <div className="admin-head">
         <div>
           <h1>Pesanan</h1>

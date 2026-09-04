@@ -1,0 +1,1201 @@
+diff --git a/app/admin/pesanan/page.js b/app/admin/pesanan/page.js
+index d48ed54..b314762 100644
+--- a/app/admin/pesanan/page.js
++++ b/app/admin/pesanan/page.js
+@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { formatRp } from '@/lib/format';
+ import { statusMeta } from '@/lib/orderStatus';
+ import AdminLogoutButton from '@/components/AdminLogoutButton';
++import AdminNav from '@/components/AdminNav';
+  
+ const TABS = ['paid', 'processing', 'shipped', 'completed', 'pending_payment', 'all'];
+  
+@@ -24,6 +25,7 @@ export default async function AdminOrdersPage({ searchParams }) {
+  
+   return (
+     <section className="wrap admin-shell">
++      <AdminNav />
+       <div className="admin-head">
+         <div>
+           <h1>Pesanan</h1>
+diff --git a/app/admin/produk/[id]/page.js b/app/admin/produk/[id]/page.js
+new file mode 100644
+index 0000000..4e27906
+--- /dev/null
++++ b/app/admin/produk/[id]/page.js
+@@ -0,0 +1,44 @@
++import Link from 'next/link';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import ProductForm from '@/components/ProductForm';
++import ProductImages from '@/components/ProductImages';
++import ProductVariants from '@/components/ProductVariants';
++
++export const dynamic = 'force-dynamic';
++
++export default async function AdminEditProductPage({ params }) {
++  const supabase = getSupabaseAdmin();
++  const { id } = await params;
++
++  const { data: product } = await supabase
++    .from('products')
++    .select('*, product_images(id, url, sort_order), product_variants(id, color, size, sku, stock, price_override)')
++    .eq('id', id)
++    .single();
++
++  if (!product) {
++    return (
++      <section className="wrap admin-shell admin-shell--narrow">
++        <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
++        <p>Produk tidak ditemukan.</p>
++      </section>
++    );
++  }
++
++  return (
++    <section className="wrap admin-shell admin-shell--narrow">
++      <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
++
++      <div className="admin-head">
++        <div>
++          <h1>{product.name}</h1>
++          <p className="admin-head__meta">/{product.category}/{product.slug}</p>
++        </div>
++      </div>
++
++      <ProductForm mode="edit" product={product} />
++      <ProductImages productId={product.id} images={product.product_images || []} />
++      <ProductVariants productId={product.id} variants={product.product_variants || []} basePrice={product.price} />
++    </section>
++  );
++}
+diff --git a/app/admin/produk/baru/page.js b/app/admin/produk/baru/page.js
+new file mode 100644
+index 0000000..c47ada2
+--- /dev/null
++++ b/app/admin/produk/baru/page.js
+@@ -0,0 +1,19 @@
++import Link from 'next/link';
++import ProductForm from '@/components/ProductForm';
++
++export default function AdminNewProductPage() {
++  return (
++    <section className="wrap admin-shell admin-shell--narrow">
++      <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
++
++      <div className="admin-head">
++        <div>
++          <h1>Tambah Produk</h1>
++          <p className="admin-head__meta">Foto dan varian bisa ditambahkan setelah produk dibuat.</p>
++        </div>
++      </div>
++
++      <ProductForm mode="create" />
++    </section>
++  );
++}
+diff --git a/app/admin/produk/page.js b/app/admin/produk/page.js
+new file mode 100644
+index 0000000..d52d593
+--- /dev/null
++++ b/app/admin/produk/page.js
+@@ -0,0 +1,112 @@
++import Link from 'next/link';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import { formatRp, titleCase } from '@/lib/format';
++import AdminLogoutButton from '@/components/AdminLogoutButton';
++import AdminNav from '@/components/AdminNav';
++
++const TABS = ['all', 'daily', 'sport', 'basic', 'custom'];
++const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
++
++export const dynamic = 'force-dynamic';
++
++function firstThumb(images) {
++  const sorted = (images || []).slice().sort((a, b) => a.sort_order - b.sort_order);
++  const hit = sorted.find((img) => IMAGE_EXTENSION_RE.test(img.url || ''));
++  return hit?.url || null;
++}
++
++export default async function AdminProductsPage({ searchParams }) {
++  const supabase = getSupabaseAdmin();
++  const params = await searchParams;
++  const filter = params?.category || 'all';
++
++  let query = supabase
++    .from('products')
++    .select('id, slug, name, category, price, compare_price, is_active, created_at, product_images(url, sort_order), product_variants(stock)')
++    .order('created_at', { ascending: false });
++
++  if (filter !== 'all') query = query.eq('category', filter);
++
++  const { data: products, error } = await query;
++
++  return (
++    <section className="wrap admin-shell">
++      <AdminNav />
++      <div className="admin-head">
++        <div>
++          <h1>Produk</h1>
++          <p className="admin-head__meta">{products?.length || 0} produk ditemukan</p>
++        </div>
++        <div style={{ display: 'flex', gap: 8 }}>
++          <Link href="/admin/produk/baru" className="btn btn--dark" style={{ fontSize: 13 }}>
++            + Tambah Produk
++          </Link>
++          <AdminLogoutButton />
++        </div>
++      </div>
++
++      <div className="admin-tabs">
++        {TABS.map((c) => (
++          <Link
++            key={c}
++            href={`/admin/produk?category=${c}`}
++            className={`admin-tab${filter === c ? ' is-active' : ''}`}
++          >
++            {c === 'all' ? 'Semua' : titleCase(c)}
++          </Link>
++        ))}
++      </div>
++
++      {error && <p style={{ color: '#C6302B', marginBottom: 16 }}>Gagal memuat data: {error.message}</p>}
++
++      <div className="admin-table-wrap">
++        <table className="admin-table">
++          <thead>
++            <tr>
++              <th>Foto</th>
++              <th>Nama</th>
++              <th>Kategori</th>
++              <th>Harga</th>
++              <th>Stok</th>
++              <th>Status</th>
++            </tr>
++          </thead>
++          <tbody>
++            {(products || []).map((p) => {
++              const thumb = firstThumb(p.product_images);
++              const totalStock = (p.product_variants || []).reduce((sum, v) => sum + (v.stock || 0), 0);
++              return (
++                <tr key={p.id}>
++                  <td>
++                    {thumb ? (
++                      <img src={thumb} alt="" className="admin-thumb" />
++                    ) : (
++                      <div className="admin-thumb" />
++                    )}
++                  </td>
++                  <td>
++                    <Link href={`/admin/produk/${p.id}`}>{p.name}</Link>
++                  </td>
++                  <td>{titleCase(p.category)}</td>
++                  <td>{formatRp(p.price)}</td>
++                  <td>{totalStock}</td>
++                  <td>
++                    <span className="admin-status">
++                      <span className="admin-status__dot" style={{ background: p.is_active ? '#16A34A' : '#9CA3AF' }} />
++                      {p.is_active ? 'Aktif' : 'Nonaktif'}
++                    </span>
++                  </td>
++                </tr>
++              );
++            })}
++            {products?.length === 0 && (
++              <tr>
++                <td colSpan={6} className="admin-empty">Belum ada produk pada kategori ini.</td>
++              </tr>
++            )}
++          </tbody>
++        </table>
++      </div>
++    </section>
++  );
++}
+diff --git a/app/api/admin/products/[id]/images/[imageId]/route.js b/app/api/admin/products/[id]/images/[imageId]/route.js
+new file mode 100644
+index 0000000..91de748
+--- /dev/null
++++ b/app/api/admin/products/[id]/images/[imageId]/route.js
+@@ -0,0 +1,37 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const BUCKET = 'product-images';
++
++function storagePathFromUrl(url) {
++  const marker = `/storage/v1/object/public/${BUCKET}/`;
++  const idx = String(url || '').indexOf(marker);
++  if (idx === -1) return null;
++  try {
++    return decodeURIComponent(url.slice(idx + marker.length));
++  } catch {
++    return url.slice(idx + marker.length);
++  }
++}
++
++export async function DELETE(req, { params }) {
++  const { imageId } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { data: image } = await supabase
++    .from('product_images')
++    .select('url')
++    .eq('id', imageId)
++    .single();
++
++  const { error } = await supabase.from('product_images').delete().eq('id', imageId);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  const path = storagePathFromUrl(image?.url);
++  if (path) {
++    // Kalau hapus di storage gagal, baris database-nya tetap sudah terhapus —
++    // tidak dianggap fatal, cukup dicoba saja (best effort).
++    await supabase.storage.from(BUCKET).remove([path]);
++  }
++
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/products/[id]/images/route.js b/app/api/admin/products/[id]/images/route.js
+new file mode 100644
+index 0000000..f189199
+--- /dev/null
++++ b/app/api/admin/products/[id]/images/route.js
+@@ -0,0 +1,101 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const BUCKET = 'product-images';
++const MAX_SIZE = 8 * 1024 * 1024; // 8MB
++
++function extOf(filename) {
++  const m = /\.([a-z0-9]+)$/i.exec(filename || '');
++  return m ? m[1].toLowerCase() : 'jpg';
++}
++
++function slugPart(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++// Nama file di storage MENENTUKAN bagaimana foto ini dikelompokkan di
++// halaman produk (lihat lib/products.js — isSizeChartFile / isDesignReferenceFile /
++// isCollarOptionFile, semuanya dicek dari nama file, bukan kolom database).
++// Jadi upload di sini WAJIB mengikuti pola nama yang sama:
++//   gallery      -> nama bebas (asal bukan cocok pola di bawah)
++//   size_chart   -> harus mengandung "size-chart"
++//   reference    -> harus DIAWALI "referensi"
++//   collar       -> harus DIAWALI "kerah-"
++function buildFileName(type, originalName, collarLabel) {
++  const ext = extOf(originalName);
++  const stamp = Date.now();
++  if (type === 'size_chart') return `size-chart-${stamp}.${ext}`;
++  if (type === 'reference') return `referensi-desain-${stamp}.${ext}`;
++  if (type === 'collar') {
++    const label = slugPart(collarLabel) || String(stamp);
++    return `kerah-${label}.${ext}`;
++  }
++  const base = slugPart(originalName.replace(/\.[a-z0-9]+$/i, '')) || 'foto';
++  return `gallery-${base}-${stamp}.${ext}`;
++}
++
++export async function POST(req, { params }) {
++  const { id } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { data: product, error: productError } = await supabase
++    .from('products')
++    .select('id, slug')
++    .eq('id', id)
++    .single();
++  if (productError || !product) {
++    return Response.json({ error: 'Produk tidak ditemukan.' }, { status: 404 });
++  }
++
++  const form = await req.formData().catch(() => null);
++  const file = form?.get('file');
++  const type = form?.get('image_type') || 'gallery';
++  const collarLabel = form?.get('collar_label') || '';
++
++  if (!file || typeof file === 'string') {
++    return Response.json({ error: 'File gambar wajib dipilih.' }, { status: 400 });
++  }
++  if (!['gallery', 'size_chart', 'reference', 'collar'].includes(type)) {
++    return Response.json({ error: 'Jenis foto tidak valid.' }, { status: 400 });
++  }
++  if (file.size > MAX_SIZE) {
++    return Response.json({ error: 'Ukuran file maksimal 8MB.' }, { status: 400 });
++  }
++  if (!file.type?.startsWith('image/')) {
++    return Response.json({ error: 'File harus berupa gambar.' }, { status: 400 });
++  }
++
++  const fileName = buildFileName(type, file.name, collarLabel);
++  const path = `${product.slug}/${fileName}`;
++  const arrayBuffer = await file.arrayBuffer();
++
++  const { error: uploadError } = await supabase.storage
++    .from(BUCKET)
++    .upload(path, arrayBuffer, { contentType: file.type, upsert: false });
++
++  if (uploadError) {
++    return Response.json({ error: `Gagal upload ke storage: ${uploadError.message}` }, { status: 500 });
++  }
++
++  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
++
++  const { count } = await supabase
++    .from('product_images')
++    .select('id', { count: 'exact', head: true })
++    .eq('product_id', id);
++
++  const { data: row, error: insertError } = await supabase
++    .from('product_images')
++    .insert({ product_id: id, url: pub.publicUrl, sort_order: count || 0 })
++    .select('id, url, sort_order')
++    .single();
++
++  if (insertError) {
++    return Response.json({ error: insertError.message }, { status: 500 });
++  }
++
++  return Response.json({ success: true, image: row });
++}
+diff --git a/app/api/admin/products/[id]/route.js b/app/api/admin/products/[id]/route.js
+new file mode 100644
+index 0000000..e94595e
+--- /dev/null
++++ b/app/api/admin/products/[id]/route.js
+@@ -0,0 +1,93 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const VALID_CATEGORIES = ['daily', 'sport', 'basic', 'custom'];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export async function PATCH(req, { params }) {
++  const { id } = await params;
++  const body = await req.json().catch(() => ({}));
++
++  const name = (body.name || '').trim();
++  const category = body.category;
++  const slug = slugify(body.slug || body.name);
++  const price = Number(body.price);
++  const comparePrice = body.compare_price === '' || body.compare_price == null ? null : Number(body.compare_price);
++
++  if (!name) return Response.json({ error: 'Nama produk wajib diisi.' }, { status: 400 });
++  if (!VALID_CATEGORIES.includes(category)) {
++    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
++  }
++  if (!slug) return Response.json({ error: 'Slug wajib diisi.' }, { status: 400 });
++  if (!Number.isFinite(price) || price < 0) {
++    return Response.json({ error: 'Harga tidak valid.' }, { status: 400 });
++  }
++  if (comparePrice != null && (!Number.isFinite(comparePrice) || comparePrice < 0)) {
++    return Response.json({ error: 'Harga coret tidak valid.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++  const { error } = await supabase
++    .from('products')
++    .update({
++      name,
++      slug,
++      category,
++      description: body.description || null,
++      material_spec: body.material_spec || null,
++      care_instructions: body.care_instructions || null,
++      price,
++      compare_price: comparePrice,
++      is_active: body.is_active !== false,
++    })
++    .eq('id', id);
++
++  if (error) {
++    const msg = error.code === '23505' ? 'Slug ini sudah dipakai produk lain.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true, slug });
++}
++
++export async function DELETE(req, { params }) {
++  const { id } = await params;
++  const supabase = getSupabaseAdmin();
++
++  // Foto di Supabase Storage tidak otomatis kehapus oleh cascade delete di
++  // database (cascade cuma menghapus baris product_images-nya), jadi hapus
++  // dulu object di storage sebelum menghapus produknya.
++  const { data: images } = await supabase
++    .from('product_images')
++    .select('url')
++    .eq('product_id', id);
++
++  if (images?.length) {
++    const paths = images.map((img) => storagePathFromUrl(img.url)).filter(Boolean);
++    if (paths.length) {
++      await supabase.storage.from('product-images').remove(paths);
++    }
++  }
++
++  const { error } = await supabase.from('products').delete().eq('id', id);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  return Response.json({ success: true });
++}
++
++function storagePathFromUrl(url) {
++  const marker = '/storage/v1/object/public/product-images/';
++  const idx = String(url || '').indexOf(marker);
++  if (idx === -1) return null;
++  try {
++    return decodeURIComponent(url.slice(idx + marker.length));
++  } catch {
++    return url.slice(idx + marker.length);
++  }
++}
+diff --git a/app/api/admin/products/[id]/variants/[variantId]/route.js b/app/api/admin/products/[id]/variants/[variantId]/route.js
+new file mode 100644
+index 0000000..49c3eec
+--- /dev/null
++++ b/app/api/admin/products/[id]/variants/[variantId]/route.js
+@@ -0,0 +1,42 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++export async function PATCH(req, { params }) {
++  const { variantId } = await params;
++  const body = await req.json().catch(() => ({}));
++
++  const stock = Number(body.stock ?? 0);
++  if (!Number.isFinite(stock) || stock < 0) {
++    return Response.json({ error: 'Stok tidak valid.' }, { status: 400 });
++  }
++  const priceOverride = body.price_override === '' || body.price_override == null ? null : Number(body.price_override);
++  if (priceOverride != null && (!Number.isFinite(priceOverride) || priceOverride < 0)) {
++    return Response.json({ error: 'Harga override tidak valid.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++  const { error } = await supabase
++    .from('product_variants')
++    .update({
++      color: body.color || null,
++      size: body.size || null,
++      sku: body.sku || null,
++      stock,
++      price_override: priceOverride,
++    })
++    .eq('id', variantId);
++
++  if (error) {
++    const msg = error.code === '23505' ? 'SKU ini sudah dipakai.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true });
++}
++
++export async function DELETE(req, { params }) {
++  const { variantId } = await params;
++  const supabase = getSupabaseAdmin();
++  const { error } = await supabase.from('product_variants').delete().eq('id', variantId);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/products/[id]/variants/route.js b/app/api/admin/products/[id]/variants/route.js
+new file mode 100644
+index 0000000..3ef3b65
+--- /dev/null
++++ b/app/api/admin/products/[id]/variants/route.js
+@@ -0,0 +1,39 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++export async function POST(req, { params }) {
++  const { id } = await params;
++  const body = await req.json().catch(() => ({}));
++
++  const stock = Number(body.stock ?? 0);
++  if (!Number.isFinite(stock) || stock < 0) {
++    return Response.json({ error: 'Stok tidak valid.' }, { status: 400 });
++  }
++  const priceOverride = body.price_override === '' || body.price_override == null ? null : Number(body.price_override);
++  if (priceOverride != null && (!Number.isFinite(priceOverride) || priceOverride < 0)) {
++    return Response.json({ error: 'Harga override tidak valid.' }, { status: 400 });
++  }
++  if (!body.color && !body.size) {
++    return Response.json({ error: 'Isi minimal warna atau ukuran.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++  const { data, error } = await supabase
++    .from('product_variants')
++    .insert({
++      product_id: id,
++      color: body.color || null,
++      size: body.size || null,
++      sku: body.sku || null,
++      stock,
++      price_override: priceOverride,
++    })
++    .select('id, color, size, sku, stock, price_override')
++    .single();
++
++  if (error) {
++    const msg = error.code === '23505' ? 'SKU ini sudah dipakai.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true, variant: data });
++}
+diff --git a/app/api/admin/products/route.js b/app/api/admin/products/route.js
+new file mode 100644
+index 0000000..32b098d
+--- /dev/null
++++ b/app/api/admin/products/route.js
+@@ -0,0 +1,56 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const VALID_CATEGORIES = ['daily', 'sport', 'basic', 'custom'];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export async function POST(req) {
++  const body = await req.json().catch(() => ({}));
++  const name = (body.name || '').trim();
++  const category = body.category;
++  const slug = slugify(body.slug || body.name);
++  const price = Number(body.price);
++  const comparePrice = body.compare_price === '' || body.compare_price == null ? null : Number(body.compare_price);
++
++  if (!name) return Response.json({ error: 'Nama produk wajib diisi.' }, { status: 400 });
++  if (!VALID_CATEGORIES.includes(category)) {
++    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
++  }
++  if (!slug) return Response.json({ error: 'Slug wajib diisi (atau nama produk harus menghasilkan slug yang valid).' }, { status: 400 });
++  if (!Number.isFinite(price) || price < 0) {
++    return Response.json({ error: 'Harga tidak valid.' }, { status: 400 });
++  }
++  if (comparePrice != null && (!Number.isFinite(comparePrice) || comparePrice < 0)) {
++    return Response.json({ error: 'Harga coret tidak valid.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++  const { data, error } = await supabase
++    .from('products')
++    .insert({
++      name,
++      slug,
++      category,
++      description: body.description || null,
++      material_spec: body.material_spec || null,
++      care_instructions: body.care_instructions || null,
++      price,
++      compare_price: comparePrice,
++      is_active: body.is_active !== false,
++    })
++    .select('id, slug')
++    .single();
++
++  if (error) {
++    const msg = error.code === '23505' ? 'Slug ini sudah dipakai produk lain.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true, id: data.id, slug: data.slug });
++}
+diff --git a/app/globals.css b/app/globals.css
+index 34a207b..5530712 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -1017,7 +1017,49 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+ }
+ .admin-actions .btn{font-size:13px;}
+ .admin-msg{width:100%;font-size:13px;margin-top:4px;}
+- 
++
++/* -- Admin section nav (Pesanan / Produk switcher) -- */
++.admin-section-nav{
++  display:flex;gap:20px;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--line);
++  font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.06em;
++}
++.admin-section-nav a{color:var(--ink-soft);padding-bottom:11px;margin-bottom:-13px;border-bottom:2px solid transparent;}
++.admin-section-nav a:hover{color:var(--ink);}
++.admin-section-nav a.is-active{color:var(--ink);border-bottom-color:var(--ink);}
++
++/* -- Admin product form -- */
++.admin-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
++.admin-form-grid .field--full{grid-column:1 / -1;}
++.admin-form-grid .field textarea{min-height:88px;resize:vertical;}
++.field--checkbox{display:flex;align-items:center;gap:8px;}
++.field--checkbox input{width:auto;}
++.field--checkbox label{margin:0;}
++@media (max-width:640px){
++  .admin-form-grid{grid-template-columns:1fr;}
++}
++
++/* -- Admin product thumbnails / image manager -- */
++.admin-thumb{width:44px;height:56px;object-fit:cover;border:1px solid var(--line);background:var(--surface);display:block;}
++.admin-upload-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;}
++.admin-upload-row .field{margin-bottom:0;}
++.admin-image-grid{display:flex;flex-wrap:wrap;gap:14px;}
++.admin-image-tile{position:relative;width:110px;}
++.admin-image-tile img{width:110px;height:138px;object-fit:cover;border:1px solid var(--line);background:var(--surface);display:block;}
++.admin-image-tile__remove{
++  position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;
++  background:rgba(0,0,0,.72);color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer;
++}
++.admin-image-tile__remove:hover{background:#C6302B;}
++.admin-image-tile__label{font-size:11px;color:var(--ink-soft);margin-top:4px;word-break:break-word;}
++.admin-image-empty{font-size:13px;color:var(--ink-soft);}
++
++/* -- Admin variants table -- */
++.admin-variant-row{display:grid;grid-template-columns:1fr 1fr 1fr 90px 40px;gap:8px;align-items:center;margin-bottom:8px;}
++.admin-variant-row input{width:100%;padding:8px 10px;border:1px solid var(--line);font-size:13px;font-family:var(--body);}
++@media (max-width:640px){
++  .admin-variant-row{grid-template-columns:1fr 1fr;}
++}
++
+ .admin-login-wrap{
+   min-height:70vh;display:flex;align-items:center;justify-content:center;
+ }
+diff --git a/components/AdminNav.jsx b/components/AdminNav.jsx
+new file mode 100644
+index 0000000..7c9d594
+--- /dev/null
++++ b/components/AdminNav.jsx
+@@ -0,0 +1,27 @@
++'use client';
++
++import Link from 'next/link';
++import { usePathname } from 'next/navigation';
++
++const LINKS = [
++  { href: '/admin/pesanan', label: 'Pesanan' },
++  { href: '/admin/produk', label: 'Produk' },
++];
++
++export default function AdminNav() {
++  const pathname = usePathname();
++
++  return (
++    <nav className="admin-section-nav">
++      {LINKS.map((l) => (
++        <Link
++          key={l.href}
++          href={l.href}
++          className={pathname?.startsWith(l.href) ? 'is-active' : ''}
++        >
++          {l.label}
++        </Link>
++      ))}
++    </nav>
++  );
++}
+diff --git a/components/ProductForm.jsx b/components/ProductForm.jsx
+new file mode 100644
+index 0000000..fcfadc9
+--- /dev/null
++++ b/components/ProductForm.jsx
+@@ -0,0 +1,191 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++const CATEGORIES = [
++  { value: 'daily', label: 'Daily & Casual' },
++  { value: 'sport', label: 'Sport Authentic' },
++  { value: 'basic', label: 'Basic' },
++  { value: 'custom', label: 'Custom Kits' },
++];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export default function ProductForm({ mode, product }) {
++  const router = useRouter();
++  const isEdit = mode === 'edit';
++
++  const [name, setName] = useState(product?.name || '');
++  const [slug, setSlug] = useState(product?.slug || '');
++  const [slugTouched, setSlugTouched] = useState(isEdit);
++  const [category, setCategory] = useState(product?.category || 'daily');
++  const [price, setPrice] = useState(product?.price ?? '');
++  const [comparePrice, setComparePrice] = useState(product?.compare_price ?? '');
++  const [description, setDescription] = useState(product?.description || '');
++  const [materialSpec, setMaterialSpec] = useState(product?.material_spec || '');
++  const [careInstructions, setCareInstructions] = useState(product?.care_instructions || '');
++  const [isActive, setIsActive] = useState(product?.is_active ?? true);
++
++  const [loading, setLoading] = useState(false);
++  const [deleting, setDeleting] = useState(false);
++  const [msg, setMsg] = useState('');
++  const [msgOk, setMsgOk] = useState(false);
++
++  function handleNameChange(v) {
++    setName(v);
++    if (!slugTouched) setSlug(slugify(v));
++  }
++
++  async function handleSubmit(e) {
++    e.preventDefault();
++    setLoading(true);
++    setMsg('');
++
++    const payload = {
++      name,
++      slug,
++      category,
++      price: Number(price),
++      compare_price: comparePrice === '' ? null : Number(comparePrice),
++      description,
++      material_spec: materialSpec,
++      care_instructions: careInstructions,
++      is_active: isActive,
++    };
++
++    try {
++      const url = isEdit ? `/api/admin/products/${product.id}` : '/api/admin/products';
++      const res = await fetch(url, {
++        method: isEdit ? 'PATCH' : 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify(payload),
++      });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menyimpan produk.');
++        return;
++      }
++      if (isEdit) {
++        setMsgOk(true);
++        setMsg('Perubahan tersimpan.');
++        router.refresh();
++      } else {
++        router.push(`/admin/produk/${data.id}`);
++      }
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  async function handleDelete() {
++    if (!confirm(`Hapus produk "${product.name}"? Foto dan varian yang menempel juga akan terhapus. Tindakan ini tidak bisa dibatalkan.`)) {
++      return;
++    }
++    setDeleting(true);
++    try {
++      const res = await fetch(`/api/admin/products/${product.id}`, { method: 'DELETE' });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menghapus produk.');
++        setDeleting(false);
++        return;
++      }
++      router.push('/admin/produk');
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++      setDeleting(false);
++    }
++  }
++
++  return (
++    <form onSubmit={handleSubmit} className="admin-card">
++      <div className="admin-form-grid">
++        <div className="field">
++          <label>Nama Produk</label>
++          <input value={name} onChange={(e) => handleNameChange(e.target.value)} required />
++        </div>
++        <div className="field">
++          <label>Slug (URL)</label>
++          <input
++            value={slug}
++            onChange={(e) => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
++            required
++          />
++        </div>
++        <div className="field">
++          <label>Kategori</label>
++          <select value={category} onChange={(e) => setCategory(e.target.value)}>
++            {CATEGORIES.map((c) => (
++              <option key={c.value} value={c.value}>{c.label}</option>
++            ))}
++          </select>
++        </div>
++        <div className="field field--checkbox" style={{ alignSelf: 'end', marginBottom: 16 }}>
++          <input
++            type="checkbox"
++            id="is_active"
++            checked={isActive}
++            onChange={(e) => setIsActive(e.target.checked)}
++          />
++          <label htmlFor="is_active" style={{ textTransform: 'none', fontFamily: 'var(--body)', fontSize: 14, color: 'var(--ink)' }}>
++            Aktif (tampil di toko)
++          </label>
++        </div>
++        <div className="field">
++          <label>Harga (Rp)</label>
++          <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
++        </div>
++        <div className="field">
++          <label>Harga Coret (opsional)</label>
++          <input type="number" min="0" value={comparePrice} onChange={(e) => setComparePrice(e.target.value)} />
++        </div>
++        <div className="field field--full">
++          <label>Deskripsi</label>
++          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
++        </div>
++        <div className="field field--full">
++          <label>Spesifikasi Material</label>
++          <textarea value={materialSpec} onChange={(e) => setMaterialSpec(e.target.value)} />
++        </div>
++        <div className="field field--full">
++          <label>Petunjuk Perawatan</label>
++          <textarea value={careInstructions} onChange={(e) => setCareInstructions(e.target.value)} />
++        </div>
++      </div>
++
++      <div className="admin-actions" style={{ justifyContent: 'space-between' }}>
++        <div style={{ display: 'flex', gap: 8 }}>
++          <button className="btn btn--dark" disabled={loading}>
++            {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Produk'}
++          </button>
++        </div>
++        {isEdit && (
++          <button
++            type="button"
++            className="btn btn--outline"
++            style={{ color: '#C6302B', borderColor: '#C6302B' }}
++            disabled={deleting}
++            onClick={handleDelete}
++          >
++            {deleting ? 'Menghapus...' : 'Hapus Produk'}
++          </button>
++        )}
++        {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B' }}>{msg}</p>}
++      </div>
++    </form>
++  );
++}
+diff --git a/components/ProductImages.jsx b/components/ProductImages.jsx
+new file mode 100644
+index 0000000..08b4db9
+--- /dev/null
++++ b/components/ProductImages.jsx
+@@ -0,0 +1,159 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++const TYPE_OPTIONS = [
++  { value: 'gallery', label: 'Foto Galeri (utama)' },
++  { value: 'size_chart', label: 'Panduan Ukuran' },
++  { value: 'reference', label: 'Referensi Desain' },
++  { value: 'collar', label: 'Pilihan Kerah' },
++];
++
++// Mengelompokkan foto persis seperti lib/products.js mengelompokkannya di
++// halaman produk — berdasarkan NAMA FILE, bukan kolom database. Lihat
++// catatan di app/api/admin/products/[id]/images/route.js.
++function fileNameOf(url) {
++  const clean = String(url || '').split('?')[0].split('#')[0];
++  const raw = clean.split('/').pop() || '';
++  try { return decodeURIComponent(raw); } catch { return raw; }
++}
++function classify(url) {
++  const name = fileNameOf(url);
++  if (/size[-_ ]?chart/i.test(name)) return 'size_chart';
++  if (/^referensi/i.test(name)) return 'reference';
++  if (/^kerah[-_ ]?/i.test(name)) return 'collar';
++  return 'gallery';
++}
++
++const GROUP_LABELS = {
++  gallery: 'Foto Galeri',
++  size_chart: 'Panduan Ukuran',
++  reference: 'Referensi Desain',
++  collar: 'Pilihan Kerah',
++};
++
++export default function ProductImages({ productId, images }) {
++  const router = useRouter();
++  const [type, setType] = useState('gallery');
++  const [collarLabel, setCollarLabel] = useState('');
++  const [file, setFile] = useState(null);
++  const [uploading, setUploading] = useState(false);
++  const [removingId, setRemovingId] = useState(null);
++  const [msg, setMsg] = useState('');
++  const [msgOk, setMsgOk] = useState(false);
++
++  const groups = { gallery: [], size_chart: [], reference: [], collar: [] };
++  for (const img of images) groups[classify(img.url)].push(img);
++
++  async function handleUpload(e) {
++    e.preventDefault();
++    if (!file) {
++      setMsgOk(false);
++      setMsg('Pilih file dulu.');
++      return;
++    }
++    setUploading(true);
++    setMsg('');
++    try {
++      const form = new FormData();
++      form.set('file', file);
++      form.set('image_type', type);
++      if (type === 'collar') form.set('collar_label', collarLabel);
++
++      const res = await fetch(`/api/admin/products/${productId}/images`, { method: 'POST', body: form });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal upload foto.');
++        return;
++      }
++      setFile(null);
++      setCollarLabel('');
++      if (e.target.reset) e.target.reset();
++      setMsgOk(true);
++      setMsg('Foto berhasil diupload.');
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setUploading(false);
++    }
++  }
++
++  async function handleRemove(imageId) {
++    if (!confirm('Hapus foto ini?')) return;
++    setRemovingId(imageId);
++    try {
++      const res = await fetch(`/api/admin/products/${productId}/images/${imageId}`, { method: 'DELETE' });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menghapus foto.');
++        return;
++      }
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setRemovingId(null);
++    }
++  }
++
++  return (
++    <div className="admin-card">
++      <div className="admin-section-label" style={{ marginTop: 0 }}>Foto Produk</div>
++
++      <form onSubmit={handleUpload} className="admin-upload-row">
++        <div className="field">
++          <label>File</label>
++          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
++        </div>
++        <div className="field">
++          <label>Jenis Foto</label>
++          <select value={type} onChange={(e) => setType(e.target.value)}>
++            {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
++          </select>
++        </div>
++        {type === 'collar' && (
++          <div className="field">
++            <label>Label Kerah (mis. "A", "Tinggi")</label>
++            <input value={collarLabel} onChange={(e) => setCollarLabel(e.target.value)} placeholder="A" />
++          </div>
++        )}
++        <button className="btn btn--dark" disabled={uploading} style={{ height: 46 }}>
++          {uploading ? 'Mengupload...' : 'Upload Foto'}
++        </button>
++      </form>
++      {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginBottom: 16 }}>{msg}</p>}
++
++      {Object.keys(GROUP_LABELS).map((key) => (
++        <div key={key}>
++          <div className="admin-section-label">{GROUP_LABELS[key]}</div>
++          {groups[key].length === 0 ? (
++            <p className="admin-image-empty">Belum ada foto.</p>
++          ) : (
++            <div className="admin-image-grid">
++              {groups[key].map((img) => (
++                <div key={img.id} className="admin-image-tile">
++                  <img src={img.url} alt="" />
++                  <button
++                    type="button"
++                    className="admin-image-tile__remove"
++                    disabled={removingId === img.id}
++                    onClick={() => handleRemove(img.id)}
++                    aria-label="Hapus foto"
++                  >
++                    ×
++                  </button>
++                </div>
++              ))}
++            </div>
++          )}
++        </div>
++      ))}
++    </div>
++  );
++}
+diff --git a/components/ProductVariants.jsx b/components/ProductVariants.jsx
+new file mode 100644
+index 0000000..74e8683
+--- /dev/null
++++ b/components/ProductVariants.jsx
+@@ -0,0 +1,128 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++import { formatRp } from '@/lib/format';
++
++function VariantRow({ productId, variant, onSaved }) {
++  const router = useRouter();
++  const [color, setColor] = useState(variant.color || '');
++  const [size, setSize] = useState(variant.size || '');
++  const [sku, setSku] = useState(variant.sku || '');
++  const [stock, setStock] = useState(variant.stock ?? 0);
++  const [saving, setSaving] = useState(false);
++  const [removing, setRemoving] = useState(false);
++  const [err, setErr] = useState('');
++
++  async function save() {
++    setSaving(true);
++    setErr('');
++    try {
++      const res = await fetch(`/api/admin/products/${productId}/variants/${variant.id}`, {
++        method: 'PATCH',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ color, size, sku, stock: Number(stock), price_override: variant.price_override }),
++      });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) { setErr(data.error || 'Gagal menyimpan.'); return; }
++      router.refresh();
++    } catch {
++      setErr('Gagal menghubungi server.');
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  async function remove() {
++    if (!confirm('Hapus varian ini?')) return;
++    setRemoving(true);
++    try {
++      const res = await fetch(`/api/admin/products/${productId}/variants/${variant.id}`, { method: 'DELETE' });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) { setErr(data.error || 'Gagal menghapus.'); setRemoving(false); return; }
++      router.refresh();
++    } catch {
++      setErr('Gagal menghubungi server.');
++      setRemoving(false);
++    }
++  }
++
++  return (
++    <div>
++      <div className="admin-variant-row">
++        <input placeholder="Warna" value={color} onChange={(e) => setColor(e.target.value)} />
++        <input placeholder="Ukuran" value={size} onChange={(e) => setSize(e.target.value)} />
++        <input placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
++        <input type="number" min="0" placeholder="Stok" value={stock} onChange={(e) => setStock(e.target.value)} />
++        <button type="button" className="btn btn--outline" style={{ padding: '8px', color: '#C6302B', borderColor: '#C6302B' }} disabled={removing} onClick={remove}>
++          ×
++        </button>
++      </div>
++      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
++        <button type="button" className="btn btn--outline" style={{ fontSize: 12, padding: '6px 12px', color: 'var(--ink)', borderColor: 'var(--ink)' }} disabled={saving} onClick={save}>
++          {saving ? 'Menyimpan...' : 'Simpan'}
++        </button>
++        {err && <span style={{ fontSize: 12, color: '#C6302B' }}>{err}</span>}
++      </div>
++    </div>
++  );
++}
++
++export default function ProductVariants({ productId, variants, basePrice }) {
++  const router = useRouter();
++  const [color, setColor] = useState('');
++  const [size, setSize] = useState('');
++  const [sku, setSku] = useState('');
++  const [stock, setStock] = useState(0);
++  const [adding, setAdding] = useState(false);
++  const [err, setErr] = useState('');
++
++  async function addVariant(e) {
++    e.preventDefault();
++    setAdding(true);
++    setErr('');
++    try {
++      const res = await fetch(`/api/admin/products/${productId}/variants`, {
++        method: 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ color, size, sku, stock: Number(stock) }),
++      });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) { setErr(data.error || 'Gagal menambah varian.'); return; }
++      setColor(''); setSize(''); setSku(''); setStock(0);
++      router.refresh();
++    } catch {
++      setErr('Gagal menghubungi server.');
++    } finally {
++      setAdding(false);
++    }
++  }
++
++  const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
++
++  return (
++    <div className="admin-card">
++      <div className="admin-section-label" style={{ marginTop: 0 }}>
++        Varian (Warna / Ukuran / Stok) — Total stok: {totalStock}
++      </div>
++      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>
++        Harga dasar produk: {formatRp(basePrice)}. Kosongkan field yang tidak relevan.
++      </p>
++
++      {variants.length === 0 && <p className="admin-image-empty" style={{ marginBottom: 16 }}>Belum ada varian.</p>}
++      {variants.map((v) => (
++        <VariantRow key={v.id} productId={productId} variant={v} />
++      ))}
++
++      <div className="admin-section-label">Tambah Varian</div>
++      <form onSubmit={addVariant} className="admin-variant-row">
++        <input placeholder="Warna" value={color} onChange={(e) => setColor(e.target.value)} />
++        <input placeholder="Ukuran" value={size} onChange={(e) => setSize(e.target.value)} />
++        <input placeholder="SKU" value={sku} onChange={(e) => setSku(e.target.value)} />
++        <input type="number" min="0" placeholder="Stok" value={stock} onChange={(e) => setStock(e.target.value)} />
++        <button className="btn btn--dark" style={{ padding: '8px' }} disabled={adding}>+</button>
++      </form>
++      {err && <p className="admin-msg" style={{ color: '#C6302B' }}>{err}</p>}
++    </div>
++  );
++}
