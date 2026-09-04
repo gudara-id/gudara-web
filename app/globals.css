@@ -222,7 +222,7 @@ header.site{
 /* ---- Custom Kits hero banner (pre-designed image, no HTML text overlay) ---- */
 .custom-hero-banner{width:100%;background:var(--ink);overflow:hidden;}
 .custom-hero-banner img{width:100%;height:auto;display:block;}
-.custom-hero-banner__cta{padding:20px 32px 32px;}
+.custom-hero-banner__cta{padding:12px 32px 24px;}
  
 /* ---- Section header ---- */
 .section{padding:80px 0;}
