@@ -14,7 +14,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
       <Link href={`/produk/${product.slug}`}>
         <div className="p-card__img">
           {product.off && <span className="p-card__badge">{product.off}</span>}
-          {isCustom && <span className="p-card__badge p-card__badge--moq">Min. 12 pcs</span>}
+          {isCustom && <span className="p-card__moq-ribbon">Min. Order 12 pcs</span>}
           <Image
             className="p-card__img-main"
             src={product.image}
@@ -44,6 +44,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
           <span className="price">{formatRp(product.price)}</span>
           {product.old && <span className="price-old">{formatRp(product.old)}</span>}
         </div>
+        {isCustom && <div className="p-card__moq-note">Minimum order 12 pcs / desain</div>}
         {isCustom ? (
           <a
             className="p-card__add"

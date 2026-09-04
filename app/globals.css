@@ -292,10 +292,20 @@ header.site{
   font-family:var(--mono);font-size:11px;font-weight:700;
   padding:4px 8px;
 }
-.p-card__badge--moq{
-  left:auto;right:10px;
-  background:var(--white);color:var(--ink);
-  border:1px solid var(--ink);
+/* Ribbon MOQ — full-width strip di bawah foto (bukan tag pojok kecil) supaya
+   langsung kelihatan tanpa harus baca detail produk dulu. */
+.p-card__moq-ribbon{
+  position:absolute;left:0;right:0;bottom:0;z-index:1;
+  background:var(--ink);color:#fff;
+  font-family:var(--mono);font-size:11px;font-weight:800;
+  letter-spacing:0.04em;text-transform:uppercase;text-align:center;
+  padding:8px 6px;
+}
+.p-card__moq-note{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  letter-spacing:0.02em;color:var(--ink);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:6px 0;margin:2px 0;
 }
 .p-card__body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
 .p-card__name{font-size:13.5px;font-weight:600;line-height:1.3;}
@@ -603,6 +613,21 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .pdp-size-opt:hover{color:var(--ink);border-bottom-color:var(--line);}
 .pdp-size-opt.is-active{color:var(--ink);font-weight:700;border-bottom-color:var(--ink);}
  
+.pdp-order-guide{border:1px solid var(--ink);padding:16px;margin-bottom:24px;}
+.pdp-order-guide__moq{
+  background:var(--ink);color:#fff;
+  font-family:var(--mono);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.03em;
+  text-align:center;padding:8px;margin:-16px -16px 14px;
+}
+.pdp-order-guide__list{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.pdp-order-guide__list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.4;}
+.pdp-order-guide__num{
+  flex-shrink:0;width:20px;height:20px;border-radius:50%;
+  background:var(--ink);color:#fff;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+
 .pdp-accordion{margin-top:32px;border-top:1px solid var(--line);}
 .pdp-accordion__item{border-bottom:1px solid var(--line);}
 .pdp-accordion__head{

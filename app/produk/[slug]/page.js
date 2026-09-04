@@ -126,6 +126,31 @@ export default async function ProductPage({ params }) {
             hideAddToCart={product.kat === 'custom'}
             sizeChartUrl={product.sizeChartUrl}
           />
+
+          {product.kat === 'custom' && (
+            <div className="pdp-order-guide">
+              <div className="pdp-order-guide__moq">Minimum Order 12 pcs / desain</div>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>Cara Order Custom</div>
+              <ol className="pdp-order-guide__list">
+                <li>
+                  <span className="pdp-order-guide__num">1</span>
+                  <span>Pilih desain &amp; cek Katalog Bahan di bawah</span>
+                </li>
+                <li>
+                  <span className="pdp-order-guide__num">2</span>
+                  <span>Chat admin: warna, logo, nameset, jumlah pcs</span>
+                </li>
+                <li>
+                  <span className="pdp-order-guide__num">3</span>
+                  <span>Approve mockup desain, lalu bayar DP</span>
+                </li>
+                <li>
+                  <span className="pdp-order-guide__num">4</span>
+                  <span>Produksi, lalu dikirim setelah pelunasan</span>
+                </li>
+              </ol>
+            </div>
+          )}
  
           <div id="panduan-ukuran">
             <ProductAccordion sections={accordionSections} />
