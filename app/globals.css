@@ -216,6 +216,10 @@ header.site{
 .btn--dark{background:var(--ink);color:#fff;}
 .btn--dark:hover{background:#2b2b2b;}
 .hero__ctas{display:flex;gap:14px;flex-wrap:wrap;}
+
+/* ---- Custom Kits hero banner (pre-designed image, no HTML text overlay) ---- */
+.custom-hero-banner{width:100%;background:var(--ink);overflow:hidden;}
+.custom-hero-banner img{width:100%;height:auto;display:block;}
  
 /* ---- Section header ---- */
 .section{padding:80px 0;}

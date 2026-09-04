@@ -14,16 +14,18 @@ export default async function CustomPage() {
  
   return (
     <>
-      <section className="hero" style={{ minHeight: '50vh' }}>
-        <div
-          className="hero__bg"
-          style={{ backgroundImage: "url('https://gudara.id/costume gudara by penilaian toko shoope.jpg')" }}
+      {/* Banner ini sudah didesain lengkap (judul "CUSTOM KITS", tagline, dan
+          bullet "FREE DESIGN / FULL CUSTOM / PREMIUM MATERIAL" sudah ada di
+          dalam gambarnya sendiri) — makanya ditampilkan apa adanya, BUKAN
+          lewat .hero/.hero__bg seperti section hero foto biasa (itu sengaja
+          meredupkan foto ke opacity 0.55 + gradient gelap supaya judul HTML
+          di atasnya kebaca; kalau dipakai di sini foto ini malah jadi kusam
+          dan judulnya dobel dengan judul yang sudah ada di gambar). */}
+      <section className="custom-hero-banner">
+        <img
+          src="/custom-kits-hero.jpg"
+          alt="Custom Kits — Custom jersey dengan desain bebas, bahan nyaman, dan produksi berkualitas untuk kebutuhan tim, komunitas, maupun event."
         />
-        <div className="wrap hero__content">
-          <span className="eyebrow" style={{ color: '#fff' }}>Pride of the Nation</span>
-          <h1 style={{ fontSize: 'clamp(40px,8vw,90px)' }}>CUSTOM<br />KITS</h1>
-          <p>Jersey tim dengan desainmu sendiri. Premium materials, authentic details.</p>
-        </div>
       </section>
  
       <section className="section--tight wrap" style={{ paddingTop: 40 }}>
