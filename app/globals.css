@@ -215,11 +215,14 @@ header.site{
 .btn--outline:hover{background:#fff;color:var(--ink);}
 .btn--dark{background:var(--ink);color:#fff;}
 .btn--dark:hover{background:#2b2b2b;}
+.btn--white{background:#fff;color:var(--ink);}
+.btn--white:hover{background:#e5e5e5;}
 .hero__ctas{display:flex;gap:14px;flex-wrap:wrap;}
 
 /* ---- Custom Kits hero banner (pre-designed image, no HTML text overlay) ---- */
 .custom-hero-banner{width:100%;background:var(--ink);overflow:hidden;}
 .custom-hero-banner img{width:100%;height:auto;display:block;}
+.custom-hero-banner__cta{padding:20px 32px 32px;}
  
 /* ---- Section header ---- */
 .section{padding:80px 0;}

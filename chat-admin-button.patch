@@ -1,0 +1,62 @@
+diff --git a/app/custom/page.js b/app/custom/page.js
+index 8876a85..016bd3d 100644
+--- a/app/custom/page.js
++++ b/app/custom/page.js
+@@ -26,6 +26,24 @@ export default async function CustomPage() {
+           src="/custom-kits-hero.jpg"
+           alt="Custom Kits — Custom jersey dengan desain bebas, bahan nyaman, dan produksi berkualitas untuk kebutuhan tim, komunitas, maupun event."
+         />
++        {/* Tombol taruh langsung di bawah foto (bukan ditumpuk absolute DI
++            ATAS baris "FREE DESIGN..." di dalam foto) supaya posisinya tidak
++            berantakan/ketimpa di layar sempit (HP) — foto itu satu file utuh
++            yang di-scale proporsional, jadi posisi teks di dalamnya bisa
++            mendarat di tempat berbeda-beda tergantung lebar layar kalau
++            tombolnya dipaksa nempel presisi di atas teksnya. Background hitam
++            di section ini (.custom-hero-banner) dibuat menyambung dengan
++            warna gelap foto, jadi tombolnya tetap terasa masih jadi satu
++            kesatuan dengan banner-nya walau taruh di bawah foto, bukan
++            ditimpa di atasnya. */}
++        <div className="wrap custom-hero-banner__cta">
++          <a
++            href="https://wa.me/628131648947?text=Halo%20Admin%20Gudara%2C%20saya%20ingin%20custom"
++            className="btn btn--white"
++          >
++            Chat Admin untuk Konsultasi
++          </a>
++        </div>
+       </section>
+  
+       <section className="section--tight wrap" style={{ paddingTop: 40 }}>
+@@ -96,13 +114,6 @@ export default async function CustomPage() {
+             variant="custom"
+           />
+         </div>
+- 
+-        <a
+-          href="https://wa.me/628131648947?text=Halo%20Admin%20Gudara%2C%20saya%20ingin%20custom"
+-          className="btn btn--dark"
+-        >
+-          Chat Admin untuk Konsultasi
+-        </a>
+       </section>
+     </>
+   );
+diff --git a/app/globals.css b/app/globals.css
+index 2e8a6aa..7d29865 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -215,11 +215,14 @@ header.site{
+ .btn--outline:hover{background:#fff;color:var(--ink);}
+ .btn--dark{background:var(--ink);color:#fff;}
+ .btn--dark:hover{background:#2b2b2b;}
++.btn--white{background:#fff;color:var(--ink);}
++.btn--white:hover{background:#e5e5e5;}
+ .hero__ctas{display:flex;gap:14px;flex-wrap:wrap;}
+ 
+ /* ---- Custom Kits hero banner (pre-designed image, no HTML text overlay) ---- */
+ .custom-hero-banner{width:100%;background:var(--ink);overflow:hidden;}
+ .custom-hero-banner img{width:100%;height:auto;display:block;}
++.custom-hero-banner__cta{padding:20px 32px 32px;}
+  
+ /* ---- Section header ---- */
+ .section{padding:80px 0;}
