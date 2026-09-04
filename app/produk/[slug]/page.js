@@ -128,9 +128,12 @@ export default async function ProductPage({ params }) {
           />
 
           {product.kat === 'custom' && (
+            <div className="pdp-moq-banner">Minimum Order 12 pcs / Desain</div>
+          )}
+
+          {product.kat === 'custom' && (
             <div className="pdp-order-guide">
-              <div className="pdp-order-guide__moq">Minimum Order 12 pcs / desain</div>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>Cara Order Custom</div>
+              <div className="pdp-order-guide__title">Cara Order Custom</div>
               <ol className="pdp-order-guide__list">
                 <li>
                   <span className="pdp-order-guide__num">1</span>

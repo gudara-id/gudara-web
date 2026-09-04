@@ -107,6 +107,7 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
         style={{
           width: '100%',
           justifyContent: 'center',
+          marginBottom: 4,
           color: hideAddToCart ? undefined : 'var(--ink)',
           borderColor: hideAddToCart ? undefined : 'var(--ink)',
         }}
