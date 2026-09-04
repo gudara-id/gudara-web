@@ -14,6 +14,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
       <Link href={`/produk/${product.slug}`}>
         <div className="p-card__img">
           {product.off && <span className="p-card__badge">{product.off}</span>}
+          {isCustom && <span className="p-card__badge p-card__badge--moq">Min. 12 pcs</span>}
           <Image
             className="p-card__img-main"
             src={product.image}

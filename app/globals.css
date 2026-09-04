@@ -292,6 +292,11 @@ header.site{
   font-family:var(--mono);font-size:11px;font-weight:700;
   padding:4px 8px;
 }
+.p-card__badge--moq{
+  left:auto;right:10px;
+  background:var(--white);color:var(--ink);
+  border:1px solid var(--ink);
+}
 .p-card__body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
 .p-card__name{font-size:13.5px;font-weight:600;line-height:1.3;}
 .p-card__prices{display:flex;gap:8px;align-items:baseline;}
@@ -614,10 +619,6 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   content:'';position:absolute;left:0;top:9px;
   width:5px;height:5px;background:var(--ink);border-radius:50%;
 }
-.pdp-shipping-note{
-  font-family:var(--mono);font-size:12px;color:var(--ink-soft);
-  text-align:center;margin-top:-4px;margin-bottom:8px;
-}
 .pdp-related{max-width:var(--container);margin:80px auto 0;padding:0 24px;}
 
 .pdp-gallery__fallback{
@@ -731,6 +732,19 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   transition:background .15s;
 }
 .pdp-lightbox__copy:hover{background:rgba(255,255,255,.24);}
+
+/* ---- Cara Order Custom (step guide di halaman /custom) ---- */
+.order-steps__grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;
+}
+.order-steps__item{border-top:2px solid var(--ink);padding-top:14px;}
+.order-steps__num{
+  font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink-soft);
+  display:block;margin-bottom:10px;
+}
+.order-steps__title{font-size:17px;margin-bottom:8px;}
+.order-steps__desc{font-size:13px;line-height:1.55;color:var(--ink-soft);}
+
  
 /* ---- Jurnal (berita/event/portofolio) ---- */
 .journal-grid{
@@ -781,6 +795,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
   .nav-actions{gap:14px;}
   .cat-grid{grid-template-columns:minmax(0,1fr);}
   .p-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .order-steps__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;}
   .promo{grid-template-columns:minmax(0,1fr);}
   .footer-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px 20px;}
   .checkout-grid{grid-template-columns:minmax(0,1fr);}

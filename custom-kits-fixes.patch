@@ -1,8 +1,77 @@
+diff --git a/app/custom/page.js b/app/custom/page.js
+index a509ed5..5d43e8f 100644
+--- a/app/custom/page.js
++++ b/app/custom/page.js
+@@ -34,8 +34,50 @@ export default async function CustomPage() {
+         </nav>
+  
+         <h1 style={{ fontSize: 'clamp(32px,5vw,56px)', margin: '8px 0 24px' }}>Custom Kits</h1>
+- 
+-        <div className="etalase-toolbar">
++
++        <div className="order-steps">
++          <div className="section-head" style={{ marginBottom: 24 }}>
++            <div>
++              <span className="eyebrow">Alur Pemesanan</span>
++              <h2 style={{ fontSize: 'clamp(24px,3vw,34px)' }}>Cara Order Custom</h2>
++            </div>
++          </div>
++          <div className="order-steps__grid">
++            <div className="order-steps__item">
++              <span className="order-steps__num">01</span>
++              <h3 className="order-steps__title">Pilih Desain &amp; Bahan</h3>
++              <p className="order-steps__desc">
++                Pilih basic desain jersey di bawah, lalu cek Katalog Bahan di halaman produk untuk
++                menentukan bahan yang kamu mau.
++              </p>
++            </div>
++            <div className="order-steps__item">
++              <span className="order-steps__num">02</span>
++              <h3 className="order-steps__title">Konsultasi via WhatsApp</h3>
++              <p className="order-steps__desc">
++                Chat admin untuk detail warna, logo, nameset, dan jumlah pesanan — minimum order 12
++                pcs per desain.
++              </p>
++            </div>
++            <div className="order-steps__item">
++              <span className="order-steps__num">03</span>
++              <h3 className="order-steps__title">Approval Desain &amp; DP</h3>
++              <p className="order-steps__desc">
++                Admin kirim mockup desain untuk disetujui. Setelah fix, bayar DP untuk mulai proses
++                produksi.
++              </p>
++            </div>
++            <div className="order-steps__item">
++              <span className="order-steps__num">04</span>
++              <h3 className="order-steps__title">Produksi &amp; Pengiriman</h3>
++              <p className="order-steps__desc">
++                Jersey diproduksi sesuai desain, lalu dikirim ke alamatmu setelah pelunasan selesai.
++              </p>
++            </div>
++          </div>
++        </div>
++
++        <div className="etalase-toolbar" style={{ marginTop: 48 }}>
+           <p style={{ fontSize: 14, color: 'var(--ink-soft)', maxWidth: 560 }}>
+             Pilih dasar desain di bawah lalu sesuaikan warna, printing, dan nameset bersama admin.
+             Minimum order 12 pcs per desain.
 diff --git a/app/globals.css b/app/globals.css
-index cb36650..b89428c 100644
+index cb36650..bf38f21 100644
 --- a/app/globals.css
 +++ b/app/globals.css
-@@ -587,23 +587,16 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+@@ -292,6 +292,11 @@ header.site{
+   font-family:var(--mono);font-size:11px;font-weight:700;
+   padding:4px 8px;
+ }
++.p-card__badge--moq{
++  left:auto;right:10px;
++  background:var(--white);color:var(--ink);
++  border:1px solid var(--ink);
++}
+ .p-card__body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
+ .p-card__name{font-size:13.5px;font-weight:600;line-height:1.3;}
+ .p-card__prices{display:flex;gap:8px;align-items:baseline;}
+@@ -587,23 +592,16 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
  }
  .pdp-swatch:hover{border-color:var(--ink-soft);}
  .pdp-swatch.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
@@ -34,7 +103,18 @@ index cb36650..b89428c 100644
   
  .pdp-accordion{margin-top:32px;border-top:1px solid var(--line);}
  .pdp-accordion__item{border-bottom:1px solid var(--line);}
-@@ -696,6 +689,41 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+@@ -621,10 +619,6 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   content:'';position:absolute;left:0;top:9px;
+   width:5px;height:5px;background:var(--ink);border-radius:50%;
+ }
+-.pdp-shipping-note{
+-  font-family:var(--mono);font-size:12px;color:var(--ink-soft);
+-  text-align:center;margin-top:-4px;margin-bottom:8px;
+-}
+ .pdp-related{max-width:var(--container);margin:80px auto 0;padding:0 24px;}
+ 
+ .pdp-gallery__fallback{
+@@ -696,6 +690,41 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
  }
  .pdp-collar-options__label:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
  
@@ -76,7 +156,35 @@ index cb36650..b89428c 100644
  .pdp-lightbox__copy{
    position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
    color:#fff;font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.04em;
-@@ -799,6 +827,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+@@ -703,6 +732,19 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   transition:background .15s;
+ }
+ .pdp-lightbox__copy:hover{background:rgba(255,255,255,.24);}
++
++/* ---- Cara Order Custom (step guide di halaman /custom) ---- */
++.order-steps__grid{
++  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;
++}
++.order-steps__item{border-top:2px solid var(--ink);padding-top:14px;}
++.order-steps__num{
++  font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink-soft);
++  display:block;margin-bottom:10px;
++}
++.order-steps__title{font-size:17px;margin-bottom:8px;}
++.order-steps__desc{font-size:13px;line-height:1.55;color:var(--ink-soft);}
++
+  
+ /* ---- Jurnal (berita/event/portofolio) ---- */
+ .journal-grid{
+@@ -753,6 +795,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   .nav-actions{gap:14px;}
+   .cat-grid{grid-template-columns:minmax(0,1fr);}
+   .p-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
++  .order-steps__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;}
+   .promo{grid-template-columns:minmax(0,1fr);}
+   .footer-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px 20px;}
+   .checkout-grid{grid-template-columns:minmax(0,1fr);}
+@@ -799,6 +842,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
    .journal-grid{grid-template-columns:1fr;}
    .pdp-design-refs__grid{grid-template-columns:repeat(2,minmax(0,1fr));}
    .pdp-collar-options__grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
@@ -85,7 +193,7 @@ index cb36650..b89428c 100644
    .footer-grid{grid-template-columns:1fr;gap:28px;text-align:left;}
    .footer-bottom{flex-direction:column;align-items:flex-start;gap:6px;}
 diff --git a/app/produk/[slug]/page.js b/app/produk/[slug]/page.js
-index a3fe8b6..444213e 100644
+index a3fe8b6..57d8f72 100644
 --- a/app/produk/[slug]/page.js
 +++ b/app/produk/[slug]/page.js
 @@ -10,6 +10,8 @@ import ProductAccordion from '@/components/ProductAccordion';
@@ -113,7 +221,15 @@ index a3fe8b6..444213e 100644
      {
        title: 'Cara Perawatan',
        body:
-@@ -169,6 +162,21 @@ export default async function ProductPage({ params }) {
+@@ -133,7 +126,6 @@ export default async function ProductPage({ params }) {
+             hideAddToCart={product.kat === 'custom'}
+             sizeChartUrl={product.sizeChartUrl}
+           />
+-          <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
+  
+           <div id="panduan-ukuran">
+             <ProductAccordion sections={accordionSections} />
+@@ -169,6 +161,21 @@ export default async function ProductPage({ params }) {
          </section>
        )}
   
@@ -288,6 +404,18 @@ index 0000000..1b66e43
 +    </>
 +  );
 +}
+diff --git a/components/ProductCard.jsx b/components/ProductCard.jsx
+index 0025a59..d274f74 100644
+--- a/components/ProductCard.jsx
++++ b/components/ProductCard.jsx
+@@ -14,6 +14,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
+       <Link href={`/produk/${product.slug}`}>
+         <div className="p-card__img">
+           {product.off && <span className="p-card__badge">{product.off}</span>}
++          {isCustom && <span className="p-card__badge p-card__badge--moq">Min. 12 pcs</span>}
+           <Image
+             className="p-card__img-main"
+             src={product.image}
 diff --git a/lib/materials.js b/lib/materials.js
 new file mode 100644
 index 0000000..a350e42

@@ -126,7 +126,6 @@ export default async function ProductPage({ params }) {
             hideAddToCart={product.kat === 'custom'}
             sizeChartUrl={product.sizeChartUrl}
           />
-          <p className="pdp-shipping-note">Gratis ongkir untuk pembelian di atas Rp 300.000</p>
  
           <div id="panduan-ukuran">
             <ProductAccordion sections={accordionSections} />

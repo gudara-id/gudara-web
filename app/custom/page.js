@@ -34,8 +34,50 @@ export default async function CustomPage() {
         </nav>
  
         <h1 style={{ fontSize: 'clamp(32px,5vw,56px)', margin: '8px 0 24px' }}>Custom Kits</h1>
- 
-        <div className="etalase-toolbar">
+
+        <div className="order-steps">
+          <div className="section-head" style={{ marginBottom: 24 }}>
+            <div>
+              <span className="eyebrow">Alur Pemesanan</span>
+              <h2 style={{ fontSize: 'clamp(24px,3vw,34px)' }}>Cara Order Custom</h2>
+            </div>
+          </div>
+          <div className="order-steps__grid">
+            <div className="order-steps__item">
+              <span className="order-steps__num">01</span>
+              <h3 className="order-steps__title">Pilih Desain &amp; Bahan</h3>
+              <p className="order-steps__desc">
+                Pilih basic desain jersey di bawah, lalu cek Katalog Bahan di halaman produk untuk
+                menentukan bahan yang kamu mau.
+              </p>
+            </div>
+            <div className="order-steps__item">
+              <span className="order-steps__num">02</span>
+              <h3 className="order-steps__title">Konsultasi via WhatsApp</h3>
+              <p className="order-steps__desc">
+                Chat admin untuk detail warna, logo, nameset, dan jumlah pesanan — minimum order 12
+                pcs per desain.
+              </p>
+            </div>
+            <div className="order-steps__item">
+              <span className="order-steps__num">03</span>
+              <h3 className="order-steps__title">Approval Desain &amp; DP</h3>
+              <p className="order-steps__desc">
+                Admin kirim mockup desain untuk disetujui. Setelah fix, bayar DP untuk mulai proses
+                produksi.
+              </p>
+            </div>
+            <div className="order-steps__item">
+              <span className="order-steps__num">04</span>
+              <h3 className="order-steps__title">Produksi &amp; Pengiriman</h3>
+              <p className="order-steps__desc">
+                Jersey diproduksi sesuai desain, lalu dikirim ke alamatmu setelah pelunasan selesai.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="etalase-toolbar" style={{ marginTop: 48 }}>
           <p style={{ fontSize: 14, color: 'var(--ink-soft)', maxWidth: 560 }}>
             Pilih dasar desain di bawah lalu sesuaikan warna, printing, dan nameset bersama admin.
             Minimum order 12 pcs per desain.
