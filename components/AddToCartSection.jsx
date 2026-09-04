@@ -73,11 +73,12 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
           {product.sizes.map((s) => (
             <button
               key={s}
-              className={`pdp-size-btn${selectedSize === s ? ' is-active' : ''}`}
+              className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
               onClick={() => {
                 setSelectedSize(s);
                 setNotice('');
               }}
+              type="button"
             >
               {s}
             </button>
@@ -112,17 +113,6 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
       >
         Tanya via WhatsApp
       </a>
-
-      <div className="pdp-info-rows">
-        <div className="pdp-info-row">
-          <span>Dikirim dari Bandung, 1–2 hari kerja</span>
-          <span className="pdp-info-row__chevron">&rsaquo;</span>
-        </div>
-        <div className="pdp-info-row">
-          <span>Kumpulkan poin di GUDARA Rewards</span>
-          <span className="pdp-info-row__chevron">&rsaquo;</span>
-        </div>
-      </div>
     </>
   );
 }

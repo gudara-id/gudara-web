@@ -10,6 +10,8 @@ import ProductAccordion from '@/components/ProductAccordion';
 import ProductGrid from '@/components/ProductGrid';
 import DesignRefGrid from '@/components/DesignRefGrid';
 import CollarOptionsGrid from '@/components/CollarOptionsGrid';
+import MaterialCatalogGrid from '@/components/MaterialCatalogGrid';
+import { MATERIALS } from '@/lib/materials';
  
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -57,15 +59,6 @@ export default async function ProductPage({ params }) {
         <img src={product.sizeChartUrl} alt={`Panduan ukuran ${product.name}`} className="pdp-size-chart-img" />
       ) : (
         <p>Panduan ukuran belum tersedia untuk produk ini — chat admin untuk info detail ukuran.</p>
-      ),
-    },
-    {
-      title: 'Pengiriman & Retur',
-      body: (
-        <p>
-          Dikirim dari Bandung dalam 1–2 hari kerja. Komplain ukuran/cacat produksi diterima
-          maks. 2×24 jam setelah barang diterima — chat admin via WhatsApp untuk proses tukar.
-        </p>
       ),
     },
     {
@@ -169,6 +162,21 @@ export default async function ProductPage({ params }) {
         </section>
       )}
  
+      {product.kat === 'custom' && (
+        <section className="pdp-material-catalog">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Katalog Bahan</span>
+              <h2>Pilihan Bahan</h2>
+            </div>
+          </div>
+          <p className="pdp-material-catalog__intro">
+            Tap foto untuk lihat lebih dekat. Sebutkan nama bahan pilihanmu ke admin saat konsultasi desain.
+          </p>
+          <MaterialCatalogGrid materials={MATERIALS} />
+        </section>
+      )}
+
       {related.length > 0 && (
         <section className="pdp-related">
           <div className="section-head">

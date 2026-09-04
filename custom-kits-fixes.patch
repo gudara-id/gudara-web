@@ -1,0 +1,341 @@
+diff --git a/app/globals.css b/app/globals.css
+index cb36650..b89428c 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -587,23 +587,16 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+ }
+ .pdp-swatch:hover{border-color:var(--ink-soft);}
+ .pdp-swatch.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
+-.pdp-sizes{display:flex;gap:8px;flex-wrap:wrap;}
+-.pdp-size-btn{
+-  min-width:44px;height:44px;padding:0 12px;
+-  border:1px solid var(--line);
+-  font-family:var(--mono);font-size:13px;
++.pdp-sizes{display:flex;gap:18px;flex-wrap:wrap;}
++.pdp-size-opt{
++  min-width:28px;padding:0 0 3px;
++  border:none;border-bottom:1px solid transparent;
++  background:none;
++  font-family:var(--mono);font-size:14px;color:var(--ink-soft);
+   transition:all .15s;
+ }
+-.pdp-size-btn:hover{border-color:var(--ink);}
+-.pdp-size-btn.is-active{background:var(--ink);border-color:var(--ink);color:#fff;}
+- 
+-.pdp-info-rows{margin-top:20px;border-top:1px solid var(--line);}
+-.pdp-info-row{
+-  display:flex;justify-content:space-between;align-items:center;
+-  padding:14px 2px;border-bottom:1px solid var(--line);
+-  font-size:13px;color:var(--ink-soft);
+-}
+-.pdp-info-row__chevron{font-size:18px;line-height:1;color:var(--ink-soft);}
++.pdp-size-opt:hover{color:var(--ink);border-bottom-color:var(--line);}
++.pdp-size-opt.is-active{color:var(--ink);font-weight:700;border-bottom-color:var(--ink);}
+  
+ .pdp-accordion{margin-top:32px;border-top:1px solid var(--line);}
+ .pdp-accordion__item{border-bottom:1px solid var(--line);}
+@@ -696,6 +689,41 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+ }
+ .pdp-collar-options__label:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
+ 
++.pdp-material-catalog{max-width:var(--container);margin:80px auto 0;padding:0 24px;}
++.pdp-material-catalog__intro{
++  font-size:14px;color:var(--ink-soft);max-width:560px;margin:-12px 0 20px;
++}
++.pdp-material-catalog__grid{
++  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:24px;
++}
++.pdp-material-catalog__item{display:flex;flex-direction:column;gap:8px;}
++.pdp-material-catalog__photo{
++  display:block;width:100%;aspect-ratio:1/1;overflow:hidden;background:var(--surface);
++  border:1px solid var(--line);cursor:zoom-in;
++  transition:border-color .15s, box-shadow .15s, transform .15s;
++}
++.pdp-material-catalog__item:hover .pdp-material-catalog__photo{
++  border-color:var(--ink);
++  box-shadow:0 10px 24px rgba(10,10,10,.12);
++  transform:translateY(-3px);
++}
++.pdp-material-catalog__photo img{width:100%;height:100%;object-fit:cover;}
++.pdp-material-catalog__name{
++  font-family:var(--mono);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
++  color:var(--ink);
++}
++.pdp-material-catalog__desc{font-size:13px;line-height:1.5;color:var(--ink-soft);}
++
++.pdp-lightbox__material-info{
++  position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
++  max-width:min(90vw,420px);text-align:center;color:#fff;
++}
++.pdp-lightbox__material-name{
++  font-family:var(--mono);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
++  margin-bottom:6px;
++}
++.pdp-lightbox__material-desc{font-size:13px;line-height:1.5;color:rgba(255,255,255,.75);}
++
+ .pdp-lightbox__copy{
+   position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
+   color:#fff;font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.04em;
+@@ -799,6 +827,7 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+   .journal-grid{grid-template-columns:1fr;}
+   .pdp-design-refs__grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+   .pdp-collar-options__grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
++  .pdp-material-catalog__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+   .pdp-lightbox__arrow{width:40px;height:40px;font-size:22px;}
+   .footer-grid{grid-template-columns:1fr;gap:28px;text-align:left;}
+   .footer-bottom{flex-direction:column;align-items:flex-start;gap:6px;}
+diff --git a/app/produk/[slug]/page.js b/app/produk/[slug]/page.js
+index a3fe8b6..444213e 100644
+--- a/app/produk/[slug]/page.js
++++ b/app/produk/[slug]/page.js
+@@ -10,6 +10,8 @@ import ProductAccordion from '@/components/ProductAccordion';
+ import ProductGrid from '@/components/ProductGrid';
+ import DesignRefGrid from '@/components/DesignRefGrid';
+ import CollarOptionsGrid from '@/components/CollarOptionsGrid';
++import MaterialCatalogGrid from '@/components/MaterialCatalogGrid';
++import { MATERIALS } from '@/lib/materials';
+  
+ export async function generateMetadata({ params }) {
+   const { slug } = await params;
+@@ -59,15 +61,6 @@ export default async function ProductPage({ params }) {
+         <p>Panduan ukuran belum tersedia untuk produk ini — chat admin untuk info detail ukuran.</p>
+       ),
+     },
+-    {
+-      title: 'Pengiriman & Retur',
+-      body: (
+-        <p>
+-          Dikirim dari Bandung dalam 1–2 hari kerja. Komplain ukuran/cacat produksi diterima
+-          maks. 2×24 jam setelah barang diterima — chat admin via WhatsApp untuk proses tukar.
+-        </p>
+-      ),
+-    },
+     {
+       title: 'Cara Perawatan',
+       body:
+@@ -169,6 +162,21 @@ export default async function ProductPage({ params }) {
+         </section>
+       )}
+  
++      {product.kat === 'custom' && (
++        <section className="pdp-material-catalog">
++          <div className="section-head">
++            <div>
++              <span className="eyebrow">Katalog Bahan</span>
++              <h2>Pilihan Bahan</h2>
++            </div>
++          </div>
++          <p className="pdp-material-catalog__intro">
++            Tap foto untuk lihat lebih dekat. Sebutkan nama bahan pilihanmu ke admin saat konsultasi desain.
++          </p>
++          <MaterialCatalogGrid materials={MATERIALS} />
++        </section>
++      )}
++
+       {related.length > 0 && (
+         <section className="pdp-related">
+           <div className="section-head">
+diff --git a/components/AddToCartSection.jsx b/components/AddToCartSection.jsx
+index 095d1b6..a755554 100644
+--- a/components/AddToCartSection.jsx
++++ b/components/AddToCartSection.jsx
+@@ -73,11 +73,12 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+           {product.sizes.map((s) => (
+             <button
+               key={s}
+-              className={`pdp-size-btn${selectedSize === s ? ' is-active' : ''}`}
++              className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
+               onClick={() => {
+                 setSelectedSize(s);
+                 setNotice('');
+               }}
++              type="button"
+             >
+               {s}
+             </button>
+@@ -112,17 +113,6 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+       >
+         Tanya via WhatsApp
+       </a>
+-
+-      <div className="pdp-info-rows">
+-        <div className="pdp-info-row">
+-          <span>Dikirim dari Bandung, 1–2 hari kerja</span>
+-          <span className="pdp-info-row__chevron">&rsaquo;</span>
+-        </div>
+-        <div className="pdp-info-row">
+-          <span>Kumpulkan poin di GUDARA Rewards</span>
+-          <span className="pdp-info-row__chevron">&rsaquo;</span>
+-        </div>
+-      </div>
+     </>
+   );
+ }
+diff --git a/components/MaterialCatalogGrid.jsx b/components/MaterialCatalogGrid.jsx
+new file mode 100644
+index 0000000..1b66e43
+--- /dev/null
++++ b/components/MaterialCatalogGrid.jsx
+@@ -0,0 +1,111 @@
++'use client';
++
++import { useEffect, useState } from 'react';
++import { createPortal } from 'react-dom';
++
++// Grid "Katalog Bahan" — dipakai di halaman produk Custom Kits supaya
++// konsumen punya gambaran tekstur/tampilan bahan sebelum konsultasi desain,
++// tanpa harus tanya admin satu-satu dulu. Struktur & pola lightbox meniru
++// CollarOptionsGrid.jsx, tapi tiap kartu juga menampilkan nama + deskripsi
++// singkat bahannya (bukan cuma kode seperti kerah).
++export default function MaterialCatalogGrid({ materials }) {
++  const [activeIndex, setActiveIndex] = useState(null);
++  const isOpen = activeIndex !== null;
++  const [mounted, setMounted] = useState(false);
++  useEffect(() => setMounted(true), []);
++
++  useEffect(() => {
++    if (!isOpen) return;
++    function handleKey(e) {
++      if (e.key === 'Escape') setActiveIndex(null);
++      if (e.key === 'ArrowLeft') setActiveIndex((i) => (i - 1 + materials.length) % materials.length);
++      if (e.key === 'ArrowRight') setActiveIndex((i) => (i + 1) % materials.length);
++    }
++    document.addEventListener('keydown', handleKey);
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    return () => {
++      document.removeEventListener('keydown', handleKey);
++      document.body.style.overflow = prevOverflow;
++    };
++  }, [isOpen, materials.length]);
++
++  if (!materials || materials.length === 0) return null;
++
++  const active = isOpen ? materials[activeIndex] : null;
++
++  return (
++    <>
++      <div className="pdp-material-catalog__grid">
++        {materials.map((m, i) => (
++          <div className="pdp-material-catalog__item" key={m.slug}>
++            <button
++              type="button"
++              className="pdp-material-catalog__photo"
++              onClick={() => setActiveIndex(i)}
++              aria-label={`Perbesar bahan ${m.name}`}
++            >
++              <img src={m.image} alt={m.name} loading="lazy" />
++            </button>
++            <div className="pdp-material-catalog__name">{m.name}</div>
++            <p className="pdp-material-catalog__desc">{m.description}</p>
++          </div>
++        ))}
++      </div>
++
++      {mounted && isOpen && createPortal(
++        <div className="pdp-lightbox" onClick={() => setActiveIndex(null)}>
++          <button
++            className="pdp-lightbox__close"
++            onClick={(e) => {
++              e.stopPropagation();
++              setActiveIndex(null);
++            }}
++            aria-label="Tutup"
++            type="button"
++          >
++            &times;
++          </button>
++
++          <div className="pdp-lightbox__stage" onClick={(e) => e.stopPropagation()}>
++            <img src={active.image} alt={active.name} className="pdp-lightbox__img" />
++          </div>
++
++          <div className="pdp-lightbox__material-info">
++            <div className="pdp-lightbox__material-name">{active.name}</div>
++            <p className="pdp-lightbox__material-desc">{active.description}</p>
++          </div>
++
++          {materials.length > 1 && (
++            <>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--prev"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i - 1 + materials.length) % materials.length);
++                }}
++                aria-label="Bahan sebelumnya"
++                type="button"
++              >
++                &lsaquo;
++              </button>
++              <button
++                className="pdp-lightbox__arrow pdp-lightbox__arrow--next"
++                onClick={(e) => {
++                  e.stopPropagation();
++                  setActiveIndex((i) => (i + 1) % materials.length);
++                }}
++                aria-label="Bahan berikutnya"
++                type="button"
++              >
++                &rsaquo;
++              </button>
++              <span className="pdp-lightbox__counter">{activeIndex + 1} / {materials.length}</span>
++            </>
++          )}
++        </div>,
++        document.body
++      )}
++    </>
++  );
++}
+diff --git a/lib/materials.js b/lib/materials.js
+new file mode 100644
+index 0000000..a350e42
+--- /dev/null
++++ b/lib/materials.js
+@@ -0,0 +1,45 @@
++// Katalog bahan baku untuk produk Custom Kits — supaya konsumen punya
++// gambaran tekstur/tampilan sebelum konsultasi desain dengan admin.
++//
++// Ini masih data statis (bukan dari Supabase) karena pilihan bahan pada
++// dasarnya sama untuk semua produk custom, jadi tidak perlu diulang per baris
++// produk di database. Ganti `image` di bawah dengan URL foto close-up bahan
++// asli (upload ke Supabase Storage lalu tempel URL publiknya di sini) begitu
++// tersedia — untuk sekarang pakai placeholder supaya halaman tetap tampil.
++export const MATERIALS = [
++  {
++    slug: 'drifit-diadora',
++    name: 'Drifit Diadora',
++    description:
++      'Bahan paling umum untuk jersey printing — ringan, adem, dan permukaannya halus sehingga hasil sublim tajam.',
++    image: 'https://placehold.co/400x400/EAE7DF/16181B?font=roboto&text=Drifit+Diadora',
++  },
++  {
++    slug: 'drifit-lotto',
++    name: 'Drifit Lotto',
++    description:
++      'Serat lebih rapat dan sedikit lebih tebal dari Diadora — jatuhnya bagus, tidak menerawang, cocok untuk jersey dengan warna solid gelap.',
++    image: 'https://placehold.co/400x400/EAE7DF/16181B?font=roboto&text=Drifit+Lotto',
++  },
++  {
++    slug: 'drifit-hyget',
++    name: 'Drifit Hyget',
++    description:
++      'Punya pori-pori halus mirip mata ayam untuk sirkulasi udara lebih baik — pilihan favorit untuk jersey lapangan/futsal.',
++    image: 'https://placehold.co/400x400/EAE7DF/16181B?font=roboto&text=Drifit+Hyget',
++  },
++  {
++    slug: 'drifit-dazzle',
++    name: 'Drifit Dazzle',
++    description:
++      'Permukaan sedikit mengkilap sehingga warna hasil print terlihat lebih vibrant — cocok untuk desain dengan gradasi warna terang.',
++    image: 'https://placehold.co/400x400/EAE7DF/16181B?font=roboto&text=Drifit+Dazzle',
++  },
++  {
++    slug: 'mesh',
++    name: 'Mesh (Fully Sublim)',
++    description:
++      'Bahan berlubang paling breathable, biasa dikombinasikan di bagian samping badan atau punggung untuk sirkulasi udara ekstra.',
++    image: 'https://placehold.co/400x400/EAE7DF/16181B?font=roboto&text=Mesh',
++  },
++];
