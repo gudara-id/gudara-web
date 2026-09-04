@@ -58,33 +58,35 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
         </div>
       )}
 
-      <div className="pdp-block">
-        <div className="pdp-block__head">
-          <div className="eyebrow">Ukuran</div>
-          {sizeChartUrl ? (
-            <a href={sizeChartUrl} target="_blank" rel="noopener noreferrer" className="pdp-size-guide">
-              Panduan Ukuran
-            </a>
-          ) : (
-            <a href="#panduan-ukuran" className="pdp-size-guide">Panduan Ukuran</a>
-          )}
+      {!hideAddToCart && (
+        <div className="pdp-block">
+          <div className="pdp-block__head">
+            <div className="eyebrow">Ukuran</div>
+            {sizeChartUrl ? (
+              <a href={sizeChartUrl} target="_blank" rel="noopener noreferrer" className="pdp-size-guide">
+                Panduan Ukuran
+              </a>
+            ) : (
+              <a href="#panduan-ukuran" className="pdp-size-guide">Panduan Ukuran</a>
+            )}
+          </div>
+          <div className="pdp-sizes">
+            {product.sizes.map((s) => (
+              <button
+                key={s}
+                className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
+                onClick={() => {
+                  setSelectedSize(s);
+                  setNotice('');
+                }}
+                type="button"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="pdp-sizes">
-          {product.sizes.map((s) => (
-            <button
-              key={s}
-              className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
-              onClick={() => {
-                setSelectedSize(s);
-                setNotice('');
-              }}
-              type="button"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {notice && (
         <p style={{ color: '#C6302B', fontSize: 13, marginBottom: 12 }}>{notice}</p>
