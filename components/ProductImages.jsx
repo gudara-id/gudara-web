@@ -33,10 +33,11 @@ const GROUP_LABELS = {
   collar: 'Pilihan Kerah',
 };
 
-export default function ProductImages({ productId, images }) {
+export default function ProductImages({ productId, images, colors = [] }) {
   const router = useRouter();
   const [type, setType] = useState('gallery');
   const [collarLabel, setCollarLabel] = useState('');
+  const [variantColor, setVariantColor] = useState('');
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState(null);
@@ -45,6 +46,16 @@ export default function ProductImages({ productId, images }) {
 
   const groups = { gallery: [], size_chart: [], reference: [], collar: [] };
   for (const img of images) groups[classify(img.url)].push(img);
+
+  // Kelompokkan foto galeri per warna varian, supaya kelihatan mana yang
+  // sudah ditag dan mana yang belum. "Umum" = variant_color kosong, dipakai
+  // sebagai fallback untuk warna yang belum ada foto khususnya.
+  const galleryByColor = new Map();
+  for (const img of groups.gallery) {
+    const key = img.variant_color || '';
+    if (!galleryByColor.has(key)) galleryByColor.set(key, []);
+    galleryByColor.get(key).push(img);
+  }
 
   async function handleUpload(e) {
     e.preventDefault();
@@ -60,6 +71,7 @@ export default function ProductImages({ productId, images }) {
       form.set('file', file);
       form.set('image_type', type);
       if (type === 'collar') form.set('collar_label', collarLabel);
+      if (type === 'gallery' && variantColor) form.set('variant_color', variantColor);
 
       const res = await fetch(`/api/admin/products/${productId}/images`, { method: 'POST', body: form });
       const data = await res.json().catch(() => ({}));
@@ -70,6 +82,7 @@ export default function ProductImages({ productId, images }) {
       }
       setFile(null);
       setCollarLabel('');
+      setVariantColor('');
       if (e.target.reset) e.target.reset();
       setMsgOk(true);
       setMsg('Foto berhasil diupload.');
@@ -123,37 +136,87 @@ export default function ProductImages({ productId, images }) {
             <input value={collarLabel} onChange={(e) => setCollarLabel(e.target.value)} placeholder="A" />
           </div>
         )}
+        {type === 'gallery' && colors.length > 0 && (
+          <div className="field">
+            <label>Untuk Varian Warna (opsional)</label>
+            <select value={variantColor} onChange={(e) => setVariantColor(e.target.value)}>
+              <option value="">Semua warna / umum</option>
+              {colors.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
         <button className="btn btn--dark" disabled={uploading} style={{ height: 46 }}>
           {uploading ? 'Mengupload...' : 'Upload Foto'}
         </button>
       </form>
       {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginBottom: 16 }}>{msg}</p>}
 
-      {Object.keys(GROUP_LABELS).map((key) => (
-        <div key={key}>
-          <div className="admin-section-label">{GROUP_LABELS[key]}</div>
-          {groups[key].length === 0 ? (
-            <p className="admin-image-empty">Belum ada foto.</p>
-          ) : (
-            <div className="admin-image-grid">
-              {groups[key].map((img) => (
-                <div key={img.id} className="admin-image-tile">
-                  <img src={img.url} alt="" />
-                  <button
-                    type="button"
-                    className="admin-image-tile__remove"
-                    disabled={removingId === img.id}
-                    onClick={() => handleRemove(img.id)}
-                    aria-label="Hapus foto"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+      {Object.keys(GROUP_LABELS).map((key) => {
+        // Foto galeri produk yang punya varian warna ditampilkan per
+        // kelompok warna, supaya kelihatan langsung warna mana yang belum
+        // ada fotonya. Grup lain (size_chart/reference/collar) tetap seperti
+        // biasa karena tidak berhubungan dengan warna varian.
+        if (key === 'gallery' && colors.length > 0) {
+          return (
+            <div key={key}>
+              <div className="admin-section-label">{GROUP_LABELS[key]}</div>
+              {groups.gallery.length === 0 ? (
+                <p className="admin-image-empty">Belum ada foto.</p>
+              ) : (
+                [...galleryByColor.entries()].map(([colorKey, imgs]) => (
+                  <div key={colorKey || '__umum__'} style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6 }}>
+                      {colorKey || 'Umum (semua warna)'}
+                    </p>
+                    <div className="admin-image-grid">
+                      {imgs.map((img) => (
+                        <div key={img.id} className="admin-image-tile">
+                          <img src={img.url} alt="" />
+                          <button
+                            type="button"
+                            className="admin-image-tile__remove"
+                            disabled={removingId === img.id}
+                            onClick={() => handleRemove(img.id)}
+                            aria-label="Hapus foto"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </div>
-      ))}
+          );
+        }
+
+        return (
+          <div key={key}>
+            <div className="admin-section-label">{GROUP_LABELS[key]}</div>
+            {groups[key].length === 0 ? (
+              <p className="admin-image-empty">Belum ada foto.</p>
+            ) : (
+              <div className="admin-image-grid">
+                {groups[key].map((img) => (
+                  <div key={img.id} className="admin-image-tile">
+                    <img src={img.url} alt="" />
+                    <button
+                      type="button"
+                      className="admin-image-tile__remove"
+                      disabled={removingId === img.id}
+                      onClick={() => handleRemove(img.id)}
+                      aria-label="Hapus foto"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

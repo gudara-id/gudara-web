@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { useCart } from '@/lib/cart-context';
+import { useProductVariant } from './ProductVariantContext';
 
 export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
   const { addToCart } = useCart();
-  const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
+  // selectedColor datang dari ProductVariantProvider (dibungkus di
+  // app/produk/[slug]/page.js) supaya klik warna di sini juga mengganti
+  // foto galeri di ProductGalleryConnected — bukan cuma dipakai di sini.
+  const { selectedColor, setSelectedColor } = useProductVariant();
   const [selectedSize, setSelectedSize] = useState(null);
   // Inline message instead of window.alert(): alert() is commonly blocked or
   // silently swallowed inside in-app browsers (Instagram/TikTok/WhatsApp),

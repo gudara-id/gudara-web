@@ -1,0 +1,527 @@
+diff --git a/app/admin/produk/[id]/page.js b/app/admin/produk/[id]/page.js
+index 4e27906..f750a17 100644
+--- a/app/admin/produk/[id]/page.js
++++ b/app/admin/produk/[id]/page.js
+@@ -12,7 +12,7 @@ export default async function AdminEditProductPage({ params }) {
+ 
+   const { data: product } = await supabase
+     .from('products')
+-    .select('*, product_images(id, url, sort_order), product_variants(id, color, size, sku, stock, price_override)')
++    .select('*, product_images(id, url, sort_order, variant_color), product_variants(id, color, size, sku, stock, price_override)')
+     .eq('id', id)
+     .single();
+ 
+@@ -37,7 +37,11 @@ export default async function AdminEditProductPage({ params }) {
+       </div>
+ 
+       <ProductForm mode="edit" product={product} />
+-      <ProductImages productId={product.id} images={product.product_images || []} />
++      <ProductImages
++        productId={product.id}
++        images={product.product_images || []}
++        colors={[...new Set((product.product_variants || []).map((v) => v.color).filter(Boolean))]}
++      />
+       <ProductVariants productId={product.id} variants={product.product_variants || []} basePrice={product.price} />
+     </section>
+   );
+diff --git a/app/api/admin/products/[id]/images/route.js b/app/api/admin/products/[id]/images/route.js
+index f189199..b152115 100644
+--- a/app/api/admin/products/[id]/images/route.js
++++ b/app/api/admin/products/[id]/images/route.js
+@@ -54,6 +54,10 @@ export async function POST(req, { params }) {
+   const file = form?.get('file');
+   const type = form?.get('image_type') || 'gallery';
+   const collarLabel = form?.get('collar_label') || '';
++  // Cuma relevan buat foto galeri — dipakai supaya klik warna di halaman
++  // produk (lib/products.js -> imagesByColor) hanya menampilkan foto varian
++  // itu. Dikosongkan untuk jenis foto lain.
++  const variantColor = type === 'gallery' ? String(form?.get('variant_color') || '').trim() : '';
+ 
+   if (!file || typeof file === 'string') {
+     return Response.json({ error: 'File gambar wajib dipilih.' }, { status: 400 });
+@@ -89,8 +93,8 @@ export async function POST(req, { params }) {
+ 
+   const { data: row, error: insertError } = await supabase
+     .from('product_images')
+-    .insert({ product_id: id, url: pub.publicUrl, sort_order: count || 0 })
+-    .select('id, url, sort_order')
++    .insert({ product_id: id, url: pub.publicUrl, sort_order: count || 0, variant_color: variantColor || null })
++    .select('id, url, sort_order, variant_color')
+     .single();
+ 
+   if (insertError) {
+diff --git a/app/produk/[slug]/page.js b/app/produk/[slug]/page.js
+index 14e220a..3174b2a 100644
+--- a/app/produk/[slug]/page.js
++++ b/app/produk/[slug]/page.js
+@@ -5,7 +5,8 @@ import { notFound } from 'next/navigation';
+ import { getProductBySlug, getRelatedProducts } from '@/lib/products';
+ import { formatRp, titleCase, toFeatureList, parseTextBlocks } from '@/lib/format';
+ import AddToCartSection from '@/components/AddToCartSection';
+-import ProductGallery from '@/components/ProductGallery';
++import ProductGalleryConnected from '@/components/ProductGalleryConnected';
++import { ProductVariantProvider } from '@/components/ProductVariantContext';
+ import ProductAccordion from '@/components/ProductAccordion';
+ import ProductGrid from '@/components/ProductGrid';
+ import DesignRefGrid from '@/components/DesignRefGrid';
+@@ -105,61 +106,63 @@ export default async function ProductPage({ params }) {
+         <span className="breadcrumb__current">{product.name}</span>
+       </nav>
+  
+-      <div className="pdp-layout">
+-        <ProductGallery images={product.images} name={product.name} />
+- 
+-        <div className="pdp-info">
+-          <div className="pdp-head">
+-            <div>
+-              <span className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>{titleCase(product.kat)}</span>
+-              <h1 className="pdp-title">{product.name}</h1>
+-            </div>
+-            <div className="pdp-price-row">
+-              <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
+-              {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
+-              {product.off && <span className="pdp-badge">{product.off}</span>}
++      <ProductVariantProvider product={product}>
++        <div className="pdp-layout">
++          <ProductGalleryConnected name={product.name} />
++
++          <div className="pdp-info">
++            <div className="pdp-head">
++              <div>
++                <span className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>{titleCase(product.kat)}</span>
++                <h1 className="pdp-title">{product.name}</h1>
++              </div>
++              <div className="pdp-price-row">
++                <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
++                {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
++                {product.off && <span className="pdp-badge">{product.off}</span>}
++              </div>
+             </div>
+-          </div>
+- 
+-          <AddToCartSection
+-            product={product}
+-            hideAddToCart={product.kat === 'custom'}
+-            sizeChartUrl={product.sizeChartUrl}
+-          />
+ 
+-          {product.kat === 'custom' && (
+-            <div className="pdp-moq-banner">Minimum Order 12 pcs / Desain</div>
+-          )}
++            <AddToCartSection
++              product={product}
++              hideAddToCart={product.kat === 'custom'}
++              sizeChartUrl={product.sizeChartUrl}
++            />
++
++            {product.kat === 'custom' && (
++              <div className="pdp-moq-banner">Minimum Order 12 pcs / Desain</div>
++            )}
++
++            {product.kat === 'custom' && (
++              <div className="pdp-order-guide">
++                <div className="pdp-order-guide__title">Cara Order Custom</div>
++                <ol className="pdp-order-guide__list">
++                  <li>
++                    <span className="pdp-order-guide__num">1</span>
++                    <span>Pilih desain &amp; cek Katalog Bahan di bawah</span>
++                  </li>
++                  <li>
++                    <span className="pdp-order-guide__num">2</span>
++                    <span>Chat admin: warna, logo, nameset, jumlah pcs</span>
++                  </li>
++                  <li>
++                    <span className="pdp-order-guide__num">3</span>
++                    <span>Approve mockup desain, lalu bayar DP</span>
++                  </li>
++                  <li>
++                    <span className="pdp-order-guide__num">4</span>
++                    <span>Produksi, lalu dikirim setelah pelunasan</span>
++                  </li>
++                </ol>
++              </div>
++            )}
+ 
+-          {product.kat === 'custom' && (
+-            <div className="pdp-order-guide">
+-              <div className="pdp-order-guide__title">Cara Order Custom</div>
+-              <ol className="pdp-order-guide__list">
+-                <li>
+-                  <span className="pdp-order-guide__num">1</span>
+-                  <span>Pilih desain &amp; cek Katalog Bahan di bawah</span>
+-                </li>
+-                <li>
+-                  <span className="pdp-order-guide__num">2</span>
+-                  <span>Chat admin: warna, logo, nameset, jumlah pcs</span>
+-                </li>
+-                <li>
+-                  <span className="pdp-order-guide__num">3</span>
+-                  <span>Approve mockup desain, lalu bayar DP</span>
+-                </li>
+-                <li>
+-                  <span className="pdp-order-guide__num">4</span>
+-                  <span>Produksi, lalu dikirim setelah pelunasan</span>
+-                </li>
+-              </ol>
++            <div id="panduan-ukuran">
++              <ProductAccordion sections={accordionSections} />
+             </div>
+-          )}
+- 
+-          <div id="panduan-ukuran">
+-            <ProductAccordion sections={accordionSections} />
+           </div>
+         </div>
+-      </div>
++      </ProductVariantProvider>
+ 
+       {product.designReferences.length > 0 && (
+         <section className="pdp-related pdp-design-refs">
+diff --git a/components/AddToCartSection.jsx b/components/AddToCartSection.jsx
+index dbcb622..335cd19 100644
+--- a/components/AddToCartSection.jsx
++++ b/components/AddToCartSection.jsx
+@@ -2,10 +2,14 @@
+ 
+ import { useState } from 'react';
+ import { useCart } from '@/lib/cart-context';
++import { useProductVariant } from './ProductVariantContext';
+ 
+ export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
+   const { addToCart } = useCart();
+-  const [selectedColor, setSelectedColor] = useState(product.colors[0] || null);
++  // selectedColor datang dari ProductVariantProvider (dibungkus di
++  // app/produk/[slug]/page.js) supaya klik warna di sini juga mengganti
++  // foto galeri di ProductGalleryConnected — bukan cuma dipakai di sini.
++  const { selectedColor, setSelectedColor } = useProductVariant();
+   const [selectedSize, setSelectedSize] = useState(null);
+   // Inline message instead of window.alert(): alert() is commonly blocked or
+   // silently swallowed inside in-app browsers (Instagram/TikTok/WhatsApp),
+diff --git a/components/ProductGalleryConnected.jsx b/components/ProductGalleryConnected.jsx
+new file mode 100644
+index 0000000..a1d9816
+--- /dev/null
++++ b/components/ProductGalleryConnected.jsx
+@@ -0,0 +1,14 @@
++'use client';
++
++import ProductGallery from './ProductGallery';
++import { useProductVariant } from './ProductVariantContext';
++
++// `key={selectedColor}` sengaja dipakai supaya ProductGallery di-remount
++// total tiap ganti warna — state internalnya (foto aktif, lightbox, foto
++// yang gagal dimuat) mengacu ke index di array `images` lama, jadi kalau
++// dibiarkan "hidup" pas array-nya berganti isi, bisa nyangkut di index yang
++// sudah tidak nyambung dengan foto varian yang baru.
++export default function ProductGalleryConnected({ name }) {
++  const { images, selectedColor } = useProductVariant();
++  return <ProductGallery key={selectedColor || 'default'} images={images} name={name} />;
++}
+diff --git a/components/ProductImages.jsx b/components/ProductImages.jsx
+index 08b4db9..8e28ba1 100644
+--- a/components/ProductImages.jsx
++++ b/components/ProductImages.jsx
+@@ -33,10 +33,11 @@ const GROUP_LABELS = {
+   collar: 'Pilihan Kerah',
+ };
+ 
+-export default function ProductImages({ productId, images }) {
++export default function ProductImages({ productId, images, colors = [] }) {
+   const router = useRouter();
+   const [type, setType] = useState('gallery');
+   const [collarLabel, setCollarLabel] = useState('');
++  const [variantColor, setVariantColor] = useState('');
+   const [file, setFile] = useState(null);
+   const [uploading, setUploading] = useState(false);
+   const [removingId, setRemovingId] = useState(null);
+@@ -46,6 +47,16 @@ export default function ProductImages({ productId, images }) {
+   const groups = { gallery: [], size_chart: [], reference: [], collar: [] };
+   for (const img of images) groups[classify(img.url)].push(img);
+ 
++  // Kelompokkan foto galeri per warna varian, supaya kelihatan mana yang
++  // sudah ditag dan mana yang belum. "Umum" = variant_color kosong, dipakai
++  // sebagai fallback untuk warna yang belum ada foto khususnya.
++  const galleryByColor = new Map();
++  for (const img of groups.gallery) {
++    const key = img.variant_color || '';
++    if (!galleryByColor.has(key)) galleryByColor.set(key, []);
++    galleryByColor.get(key).push(img);
++  }
++
+   async function handleUpload(e) {
+     e.preventDefault();
+     if (!file) {
+@@ -60,6 +71,7 @@ export default function ProductImages({ productId, images }) {
+       form.set('file', file);
+       form.set('image_type', type);
+       if (type === 'collar') form.set('collar_label', collarLabel);
++      if (type === 'gallery' && variantColor) form.set('variant_color', variantColor);
+ 
+       const res = await fetch(`/api/admin/products/${productId}/images`, { method: 'POST', body: form });
+       const data = await res.json().catch(() => ({}));
+@@ -70,6 +82,7 @@ export default function ProductImages({ productId, images }) {
+       }
+       setFile(null);
+       setCollarLabel('');
++      setVariantColor('');
+       if (e.target.reset) e.target.reset();
+       setMsgOk(true);
+       setMsg('Foto berhasil diupload.');
+@@ -123,37 +136,87 @@ export default function ProductImages({ productId, images }) {
+             <input value={collarLabel} onChange={(e) => setCollarLabel(e.target.value)} placeholder="A" />
+           </div>
+         )}
++        {type === 'gallery' && colors.length > 0 && (
++          <div className="field">
++            <label>Untuk Varian Warna (opsional)</label>
++            <select value={variantColor} onChange={(e) => setVariantColor(e.target.value)}>
++              <option value="">Semua warna / umum</option>
++              {colors.map((c) => <option key={c} value={c}>{c}</option>)}
++            </select>
++          </div>
++        )}
+         <button className="btn btn--dark" disabled={uploading} style={{ height: 46 }}>
+           {uploading ? 'Mengupload...' : 'Upload Foto'}
+         </button>
+       </form>
+       {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginBottom: 16 }}>{msg}</p>}
+ 
+-      {Object.keys(GROUP_LABELS).map((key) => (
+-        <div key={key}>
+-          <div className="admin-section-label">{GROUP_LABELS[key]}</div>
+-          {groups[key].length === 0 ? (
+-            <p className="admin-image-empty">Belum ada foto.</p>
+-          ) : (
+-            <div className="admin-image-grid">
+-              {groups[key].map((img) => (
+-                <div key={img.id} className="admin-image-tile">
+-                  <img src={img.url} alt="" />
+-                  <button
+-                    type="button"
+-                    className="admin-image-tile__remove"
+-                    disabled={removingId === img.id}
+-                    onClick={() => handleRemove(img.id)}
+-                    aria-label="Hapus foto"
+-                  >
+-                    ×
+-                  </button>
+-                </div>
+-              ))}
++      {Object.keys(GROUP_LABELS).map((key) => {
++        // Foto galeri produk yang punya varian warna ditampilkan per
++        // kelompok warna, supaya kelihatan langsung warna mana yang belum
++        // ada fotonya. Grup lain (size_chart/reference/collar) tetap seperti
++        // biasa karena tidak berhubungan dengan warna varian.
++        if (key === 'gallery' && colors.length > 0) {
++          return (
++            <div key={key}>
++              <div className="admin-section-label">{GROUP_LABELS[key]}</div>
++              {groups.gallery.length === 0 ? (
++                <p className="admin-image-empty">Belum ada foto.</p>
++              ) : (
++                [...galleryByColor.entries()].map(([colorKey, imgs]) => (
++                  <div key={colorKey || '__umum__'} style={{ marginBottom: 12 }}>
++                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)', marginBottom: 6 }}>
++                      {colorKey || 'Umum (semua warna)'}
++                    </p>
++                    <div className="admin-image-grid">
++                      {imgs.map((img) => (
++                        <div key={img.id} className="admin-image-tile">
++                          <img src={img.url} alt="" />
++                          <button
++                            type="button"
++                            className="admin-image-tile__remove"
++                            disabled={removingId === img.id}
++                            onClick={() => handleRemove(img.id)}
++                            aria-label="Hapus foto"
++                          >
++                            ×
++                          </button>
++                        </div>
++                      ))}
++                    </div>
++                  </div>
++                ))
++              )}
+             </div>
+-          )}
+-        </div>
+-      ))}
++          );
++        }
++
++        return (
++          <div key={key}>
++            <div className="admin-section-label">{GROUP_LABELS[key]}</div>
++            {groups[key].length === 0 ? (
++              <p className="admin-image-empty">Belum ada foto.</p>
++            ) : (
++              <div className="admin-image-grid">
++                {groups[key].map((img) => (
++                  <div key={img.id} className="admin-image-tile">
++                    <img src={img.url} alt="" />
++                    <button
++                      type="button"
++                      className="admin-image-tile__remove"
++                      disabled={removingId === img.id}
++                      onClick={() => handleRemove(img.id)}
++                      aria-label="Hapus foto"
++                    >
++                      ×
++                    </button>
++                  </div>
++                ))}
++              </div>
++            )}
++          </div>
++        );
++      })}
+     </div>
+   );
+ }
+diff --git a/components/ProductVariantContext.jsx b/components/ProductVariantContext.jsx
+new file mode 100644
+index 0000000..352cfea
+--- /dev/null
++++ b/components/ProductVariantContext.jsx
+@@ -0,0 +1,39 @@
++'use client';
++
++import { createContext, useContext, useMemo, useState } from 'react';
++
++// ProductGallery (kolom kiri) dan AddToCartSection (kolom kanan, di dalam
++// .pdp-info) bukan komponen bertetangga di app/produk/[slug]/page.js — jadi
++// state "warna yang lagi dipilih" tidak bisa lewat props biasa. Context ini
++// jadi satu-satunya sumber kebenaran buat warna terpilih, supaya klik warna
++// di panel beli langsung ganti foto galeri di sebelahnya.
++const ProductVariantContext = createContext(null);
++
++export function ProductVariantProvider({ product, children }) {
++  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || null);
++
++  // product.imagesByColor sudah dihitung sekali di server (lib/products.js)
++  // dan tidak berubah — jadi array per warna di dalamnya referensinya stabil,
++  // aman dipakai sebagai `key` React di ProductGalleryConnected.
++  const images = useMemo(() => {
++    if (selectedColor && product.imagesByColor?.[selectedColor]?.length) {
++      return product.imagesByColor[selectedColor];
++    }
++    return product.images;
++  }, [selectedColor, product]);
++
++  const value = useMemo(
++    () => ({ selectedColor, setSelectedColor, images, colors: product.colors || [] }),
++    [selectedColor, images, product.colors]
++  );
++
++  return <ProductVariantContext.Provider value={value}>{children}</ProductVariantContext.Provider>;
++}
++
++export function useProductVariant() {
++  const ctx = useContext(ProductVariantContext);
++  if (!ctx) {
++    throw new Error('useProductVariant() must be used inside <ProductVariantProvider>');
++  }
++  return ctx;
++}
+diff --git a/lib/products.js b/lib/products.js
+index 131ae13..15b9f31 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -75,6 +75,12 @@ function isGalleryPhoto(img) {
+   );
+ }
+ 
++// Dipakai buat mencocokkan variant_color foto ("Brazil") dengan warna varian
++// produk ("brazil", " Brazil ", dst.) tanpa peduli besar/kecil huruf atau spasi.
++function normalizeColorKey(c) {
++  return String(c || '').trim().toLowerCase();
++}
++
+ function computeOff(price, comparePrice) {
+   if (!comparePrice || comparePrice <= price) return null;
+   const pct = Math.round((1 - price / comparePrice) * 100);
+@@ -152,7 +158,7 @@ export async function getProductBySlug(slug) {
+   const { data, error } = await supabase
+     .from('products')
+     .select(
+-      'id, slug, name, category, description, material_spec, care_instructions, price, compare_price, product_images(url, sort_order), product_variants(id, color, size, stock)'
++      'id, slug, name, category, description, material_spec, care_instructions, price, compare_price, product_images(url, sort_order, variant_color), product_variants(id, color, size, stock)'
+     )
+     .eq('slug', slug)
+     .eq('is_active', true)
+@@ -180,6 +186,30 @@ export async function getProductBySlug(slug) {
+   const sizes = [...new Set((data.product_variants || []).map((v) => v.size).filter(Boolean))];
+   const colors = [...new Set((data.product_variants || []).map((v) => v.color).filter(Boolean))];
+   const imageUrls = galleryImages.length ? galleryImages.map((i) => i.url) : [PLACEHOLDER_IMAGE];
++
++  // Foto yang tidak ditandai variant_color (mis. produk lama yang belum
++  // pernah ditag, atau memang foto "umum") dipakai sebagai galeri fallback
++  // untuk warna manapun yang belum punya foto khususnya sendiri.
++  const untaggedGalleryImages = galleryImages
++    .filter((img) => !img.variant_color)
++    .map((i) => i.url);
++  const hasColorTaggedImages = galleryImages.some((img) => img.variant_color);
++
++  // Per warna: pakai foto yang ditag khusus warna itu; kalau belum ada,
++  // jatuh ke foto umum; kalau itu pun kosong, jatuh ke galeri lengkap
++  // (supaya produk yang belum ditag sama sekali tetap tampil normal).
++  const imagesByColor = {};
++  for (const color of colors) {
++    const key = normalizeColorKey(color);
++    const matched = galleryImages
++      .filter((img) => normalizeColorKey(img.variant_color) === key)
++      .map((i) => i.url);
++    imagesByColor[color] = matched.length
++      ? matched
++      : untaggedGalleryImages.length
++      ? untaggedGalleryImages
++      : imageUrls;
++  }
+  
+   return {
+     id: data.id,
+@@ -199,6 +229,12 @@ export async function getProductBySlug(slug) {
+     // Sudah dibersihkan dari size-chart, foto referensi desain, & pilihan
+     // kerah — itu ditampilkan di section terpisah masing-masing.
+     images: imageUrls,
++    // Foto galeri per warna varian — dipakai halaman produk supaya klik
++    // warna (mis. "Brazil") cuma menampilkan foto varian itu saja, bukan
++    // seluruh galeri produk. Kosong ({}) kalau produk tidak punya varian
++    // warna sama sekali.
++    imagesByColor,
++    hasColorTaggedImages,
+     sizeChartUrl: sizeChartImage?.url || null,
+     designReferences: designReferenceImages.map((i) => i.url),
+     collarOptions: collarOptionImages.map((i) => ({ url: i.url, label: collarOptionLabel(i.url) })),
+diff --git a/supabase/add-image-variant-color.sql b/supabase/add-image-variant-color.sql
+new file mode 100644
+index 0000000..a683d21
+--- /dev/null
++++ b/supabase/add-image-variant-color.sql
+@@ -0,0 +1,25 @@
++-- =====================================================
++-- GUDARA — Foto galeri per varian warna
++-- Jalankan SEKALI di Supabase Dashboard → SQL Editor.
++--
++-- Kenapa ini perlu: sekarang satu produk cuma punya SATU galeri foto yang
++-- sama, dipakai buat semua warna (mis. produk "Jersey Fantasy Negara" yang
++-- punya varian Argentina/Brazil/England/dst tetap menampilkan foto yang
++-- sama walau pembeli klik warna berbeda). Kolom variant_color di bawah
++-- menandai sebuah foto galeri itu punya warna apa, supaya halaman produk
++-- bisa filter galeri sesuai warna yang lagi dipilih.
++--
++-- Foto yang variant_color-nya NULL/kosong dianggap "umum" — tetap
++-- ditampilkan untuk warna manapun yang belum ada foto khusus.
++-- =====================================================
++
++alter table product_images
++  add column if not exists variant_color text;
++
++create index if not exists idx_product_images_variant_color
++  on product_images(product_id, variant_color);
++
++-- Cara pakai ke depannya: dari halaman admin edit produk, saat upload foto
++-- "Foto Galeri", isi field "Untuk Varian Warna" dengan salah satu warna
++-- yang sudah ada di daftar Varian produk itu (mis. "Brazil"). Kosongkan
++-- kalau foto itu berlaku untuk semua warna / produk tidak punya varian warna.

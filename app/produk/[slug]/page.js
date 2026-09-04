@@ -5,7 +5,8 @@ import { notFound } from 'next/navigation';
 import { getProductBySlug, getRelatedProducts } from '@/lib/products';
 import { formatRp, titleCase, toFeatureList, parseTextBlocks } from '@/lib/format';
 import AddToCartSection from '@/components/AddToCartSection';
-import ProductGallery from '@/components/ProductGallery';
+import ProductGalleryConnected from '@/components/ProductGalleryConnected';
+import { ProductVariantProvider } from '@/components/ProductVariantContext';
 import ProductAccordion from '@/components/ProductAccordion';
 import ProductGrid from '@/components/ProductGrid';
 import DesignRefGrid from '@/components/DesignRefGrid';
@@ -105,61 +106,63 @@ export default async function ProductPage({ params }) {
         <span className="breadcrumb__current">{product.name}</span>
       </nav>
  
-      <div className="pdp-layout">
-        <ProductGallery images={product.images} name={product.name} />
- 
-        <div className="pdp-info">
-          <div className="pdp-head">
-            <div>
-              <span className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>{titleCase(product.kat)}</span>
-              <h1 className="pdp-title">{product.name}</h1>
-            </div>
-            <div className="pdp-price-row">
-              <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
-              {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
-              {product.off && <span className="pdp-badge">{product.off}</span>}
-            </div>
-          </div>
- 
-          <AddToCartSection
-            product={product}
-            hideAddToCart={product.kat === 'custom'}
-            sizeChartUrl={product.sizeChartUrl}
-          />
+      <ProductVariantProvider product={product}>
+        <div className="pdp-layout">
+          <ProductGalleryConnected name={product.name} />
 
-          {product.kat === 'custom' && (
-            <div className="pdp-moq-banner">Minimum Order 12 pcs / Desain</div>
-          )}
-
-          {product.kat === 'custom' && (
-            <div className="pdp-order-guide">
-              <div className="pdp-order-guide__title">Cara Order Custom</div>
-              <ol className="pdp-order-guide__list">
-                <li>
-                  <span className="pdp-order-guide__num">1</span>
-                  <span>Pilih desain &amp; cek Katalog Bahan di bawah</span>
-                </li>
-                <li>
-                  <span className="pdp-order-guide__num">2</span>
-                  <span>Chat admin: warna, logo, nameset, jumlah pcs</span>
-                </li>
-                <li>
-                  <span className="pdp-order-guide__num">3</span>
-                  <span>Approve mockup desain, lalu bayar DP</span>
-                </li>
-                <li>
-                  <span className="pdp-order-guide__num">4</span>
-                  <span>Produksi, lalu dikirim setelah pelunasan</span>
-                </li>
-              </ol>
+          <div className="pdp-info">
+            <div className="pdp-head">
+              <div>
+                <span className="eyebrow" style={{ display: 'block', marginBottom: 6 }}>{titleCase(product.kat)}</span>
+                <h1 className="pdp-title">{product.name}</h1>
+              </div>
+              <div className="pdp-price-row">
+                <span className="price" style={{ fontSize: 22 }}>{formatRp(product.price)}</span>
+                {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
+                {product.off && <span className="pdp-badge">{product.off}</span>}
+              </div>
             </div>
-          )}
- 
-          <div id="panduan-ukuran">
-            <ProductAccordion sections={accordionSections} />
+
+            <AddToCartSection
+              product={product}
+              hideAddToCart={product.kat === 'custom'}
+              sizeChartUrl={product.sizeChartUrl}
+            />
+
+            {product.kat === 'custom' && (
+              <div className="pdp-moq-banner">Minimum Order 12 pcs / Desain</div>
+            )}
+
+            {product.kat === 'custom' && (
+              <div className="pdp-order-guide">
+                <div className="pdp-order-guide__title">Cara Order Custom</div>
+                <ol className="pdp-order-guide__list">
+                  <li>
+                    <span className="pdp-order-guide__num">1</span>
+                    <span>Pilih desain &amp; cek Katalog Bahan di bawah</span>
+                  </li>
+                  <li>
+                    <span className="pdp-order-guide__num">2</span>
+                    <span>Chat admin: warna, logo, nameset, jumlah pcs</span>
+                  </li>
+                  <li>
+                    <span className="pdp-order-guide__num">3</span>
+                    <span>Approve mockup desain, lalu bayar DP</span>
+                  </li>
+                  <li>
+                    <span className="pdp-order-guide__num">4</span>
+                    <span>Produksi, lalu dikirim setelah pelunasan</span>
+                  </li>
+                </ol>
+              </div>
+            )}
+
+            <div id="panduan-ukuran">
+              <ProductAccordion sections={accordionSections} />
+            </div>
           </div>
         </div>
-      </div>
+      </ProductVariantProvider>
 
       {product.designReferences.length > 0 && (
         <section className="pdp-related pdp-design-refs">

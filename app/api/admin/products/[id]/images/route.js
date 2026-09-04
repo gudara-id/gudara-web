@@ -54,6 +54,10 @@ export async function POST(req, { params }) {
   const file = form?.get('file');
   const type = form?.get('image_type') || 'gallery';
   const collarLabel = form?.get('collar_label') || '';
+  // Cuma relevan buat foto galeri — dipakai supaya klik warna di halaman
+  // produk (lib/products.js -> imagesByColor) hanya menampilkan foto varian
+  // itu. Dikosongkan untuk jenis foto lain.
+  const variantColor = type === 'gallery' ? String(form?.get('variant_color') || '').trim() : '';
 
   if (!file || typeof file === 'string') {
     return Response.json({ error: 'File gambar wajib dipilih.' }, { status: 400 });
@@ -89,8 +93,8 @@ export async function POST(req, { params }) {
 
   const { data: row, error: insertError } = await supabase
     .from('product_images')
-    .insert({ product_id: id, url: pub.publicUrl, sort_order: count || 0 })
-    .select('id, url, sort_order')
+    .insert({ product_id: id, url: pub.publicUrl, sort_order: count || 0, variant_color: variantColor || null })
+    .select('id, url, sort_order, variant_color')
     .single();
 
   if (insertError) {

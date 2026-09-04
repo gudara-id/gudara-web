@@ -12,7 +12,7 @@ export default async function AdminEditProductPage({ params }) {
 
   const { data: product } = await supabase
     .from('products')
-    .select('*, product_images(id, url, sort_order), product_variants(id, color, size, sku, stock, price_override)')
+    .select('*, product_images(id, url, sort_order, variant_color), product_variants(id, color, size, sku, stock, price_override)')
     .eq('id', id)
     .single();
 
@@ -37,7 +37,11 @@ export default async function AdminEditProductPage({ params }) {
       </div>
 
       <ProductForm mode="edit" product={product} />
-      <ProductImages productId={product.id} images={product.product_images || []} />
+      <ProductImages
+        productId={product.id}
+        images={product.product_images || []}
+        colors={[...new Set((product.product_variants || []).map((v) => v.color).filter(Boolean))]}
+      />
       <ProductVariants productId={product.id} variants={product.product_variants || []} basePrice={product.price} />
     </section>
   );
