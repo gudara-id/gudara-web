@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { getProductRow } from '@/lib/products';
 import { getJournalPosts } from '@/lib/journal';
+import { getActiveHero } from '@/lib/hero';
 import ProductGrid from '@/components/ProductGrid';
 import JournalCard from '@/components/JournalCard';
  
@@ -10,29 +11,41 @@ export default async function HomePage() {
   // Flat catalog feed — no category param means all categories mixed together,
   // shown as a single dense grid right below the hero (reference-site pattern:
   // no "Kategori" intermediary, straight into the product wall).
-  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts] = await Promise.all([
+  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts, hero] = await Promise.all([
     getProductRow(null, 24, 'newest', '', { excludeCustom: true }),
     getProductRow('daily', 4),
     getProductRow('sport', 4),
     getProductRow('basic', 4),
     getJournalPosts(null, 3),
+    getActiveHero(),
   ]);
  
   return (
     <>
-      {/* HERO */}
+      {/* HERO — foto & teks diatur dari /admin/campaign, lihat lib/hero.js */}
       <section className="hero">
         <div
           className="hero__bg"
-          style={{ backgroundImage: "url('/hero-1.jpg')" }}
+          style={{ backgroundImage: `url('${hero.image}')` }}
         />
         <div className="wrap hero__content">
-          <span className="eyebrow" style={{ color: '#fff' }}>Move Faster Collection</span>
-          <h1>MOVE<br />FASTER.</h1>
-          <p>Langkah lebih ringan, sirkulasi udara lebih bebas. Tingkatkan outfit-mu bersama GUDARA.</p>
+          {hero.eyebrow && <span className="eyebrow" style={{ color: '#fff' }}>{hero.eyebrow}</span>}
+          <h1>
+            {hero.headline.split('\n').map((line, i, arr) => (
+              <span key={i}>
+                {line}
+                {i < arr.length - 1 && <br />}
+              </span>
+            ))}
+          </h1>
+          {hero.description && <p>{hero.description}</p>}
           <div className="hero__ctas">
-            <Link href="/etalase" className="btn btn--accent">Belanja Sekarang</Link>
-            <Link href="/custom" className="btn btn--outline">Mulai Custom Jersey</Link>
+            {hero.ctaPrimaryLabel && hero.ctaPrimaryHref && (
+              <Link href={hero.ctaPrimaryHref} className="btn btn--accent">{hero.ctaPrimaryLabel}</Link>
+            )}
+            {hero.ctaSecondaryLabel && hero.ctaSecondaryHref && (
+              <Link href={hero.ctaSecondaryHref} className="btn btn--outline">{hero.ctaSecondaryLabel}</Link>
+            )}
           </div>
         </div>
       </section>

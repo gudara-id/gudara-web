@@ -1,0 +1,1265 @@
+diff --git a/app/admin/campaign/page.js b/app/admin/campaign/page.js
+new file mode 100644
+index 0000000..b108b45
+--- /dev/null
++++ b/app/admin/campaign/page.js
+@@ -0,0 +1,36 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import AdminLogoutButton from '@/components/AdminLogoutButton';
++import AdminNav from '@/components/AdminNav';
++import HeroForm from '@/components/HeroForm';
++
++export const dynamic = 'force-dynamic';
++
++export default async function AdminCampaignPage() {
++  const supabase = getSupabaseAdmin();
++  const { data: hero, error } = await supabase
++    .from('site_hero')
++    .select('*')
++    .eq('key', 'home')
++    .single();
++
++  return (
++    <section className="wrap admin-shell admin-shell--narrow">
++      <AdminNav />
++      <div className="admin-head">
++        <div>
++          <h1>Campaign / Hero Beranda</h1>
++          <p className="admin-head__meta">Atur foto & teks utama yang tampil paling atas di halaman beranda.</p>
++        </div>
++        <AdminLogoutButton />
++      </div>
++
++      {error && (
++        <p style={{ color: '#C6302B', marginBottom: 16 }}>
++          Gagal memuat data: {error.message}. Pastikan migrasi SQL "site_hero" sudah dijalankan di Supabase.
++        </p>
++      )}
++
++      {!error && <HeroForm hero={hero} />}
++    </section>
++  );
++}
+diff --git a/app/admin/jurnal/[id]/page.js b/app/admin/jurnal/[id]/page.js
+new file mode 100644
+index 0000000..495f48b
+--- /dev/null
++++ b/app/admin/jurnal/[id]/page.js
+@@ -0,0 +1,44 @@
++import Link from 'next/link';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import JournalForm from '@/components/JournalForm';
++import JournalImages from '@/components/JournalImages';
++
++export const dynamic = 'force-dynamic';
++
++export default async function AdminEditJournalPage({ params }) {
++  const supabase = getSupabaseAdmin();
++  const { id } = await params;
++
++  const { data: post } = await supabase
++    .from('journal_posts')
++    .select('*, journal_images(id, url, caption, sort_order)')
++    .eq('id', id)
++    .single();
++
++  if (!post) {
++    return (
++      <section className="wrap admin-shell admin-shell--narrow">
++        <Link href="/admin/jurnal" className="admin-back">&larr; Kembali ke Jurnal</Link>
++        <p>Postingan tidak ditemukan.</p>
++      </section>
++    );
++  }
++
++  const gallery = (post.journal_images || []).slice().sort((a, b) => a.sort_order - b.sort_order);
++
++  return (
++    <section className="wrap admin-shell admin-shell--narrow">
++      <Link href="/admin/jurnal" className="admin-back">&larr; Kembali ke Jurnal</Link>
++
++      <div className="admin-head">
++        <div>
++          <h1>{post.title}</h1>
++          <p className="admin-head__meta">/jurnal/{post.slug}</p>
++        </div>
++      </div>
++
++      <JournalForm mode="edit" post={post} />
++      <JournalImages postId={post.id} coverUrl={post.cover_image} gallery={gallery} />
++    </section>
++  );
++}
+diff --git a/app/admin/jurnal/baru/page.js b/app/admin/jurnal/baru/page.js
+new file mode 100644
+index 0000000..f3499f3
+--- /dev/null
++++ b/app/admin/jurnal/baru/page.js
+@@ -0,0 +1,19 @@
++import Link from 'next/link';
++import JournalForm from '@/components/JournalForm';
++
++export default function AdminNewJournalPage() {
++  return (
++    <section className="wrap admin-shell admin-shell--narrow">
++      <Link href="/admin/jurnal" className="admin-back">&larr; Kembali ke Jurnal</Link>
++
++      <div className="admin-head">
++        <div>
++          <h1>Tambah Postingan</h1>
++          <p className="admin-head__meta">Foto cover dan galeri bisa ditambahkan setelah postingan dibuat.</p>
++        </div>
++      </div>
++
++      <JournalForm mode="create" />
++    </section>
++  );
++}
+diff --git a/app/admin/jurnal/page.js b/app/admin/jurnal/page.js
+new file mode 100644
+index 0000000..9455d82
+--- /dev/null
++++ b/app/admin/jurnal/page.js
+@@ -0,0 +1,100 @@
++import Link from 'next/link';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++import { journalCategoryLabel } from '@/lib/journal';
++import { formatDate } from '@/lib/format';
++import AdminLogoutButton from '@/components/AdminLogoutButton';
++import AdminNav from '@/components/AdminNav';
++
++const TABS = ['all', 'berita', 'event', 'portofolio'];
++
++export const dynamic = 'force-dynamic';
++
++export default async function AdminJournalPage({ searchParams }) {
++  const supabase = getSupabaseAdmin();
++  const params = await searchParams;
++  const filter = params?.category || 'all';
++
++  let query = supabase
++    .from('journal_posts')
++    .select('id, slug, title, category, cover_image, is_published, event_date, published_at')
++    .order('published_at', { ascending: false });
++
++  if (filter !== 'all') query = query.eq('category', filter);
++
++  const { data: posts, error } = await query;
++
++  return (
++    <section className="wrap admin-shell">
++      <AdminNav />
++      <div className="admin-head">
++        <div>
++          <h1>Jurnal</h1>
++          <p className="admin-head__meta">{posts?.length || 0} postingan ditemukan</p>
++        </div>
++        <div style={{ display: 'flex', gap: 8 }}>
++          <Link href="/admin/jurnal/baru" className="btn btn--dark" style={{ fontSize: 13 }}>
++            + Tambah Postingan
++          </Link>
++          <AdminLogoutButton />
++        </div>
++      </div>
++
++      <div className="admin-tabs">
++        {TABS.map((c) => (
++          <Link
++            key={c}
++            href={`/admin/jurnal?category=${c}`}
++            className={`admin-tab${filter === c ? ' is-active' : ''}`}
++          >
++            {c === 'all' ? 'Semua' : journalCategoryLabel(c)}
++          </Link>
++        ))}
++      </div>
++
++      {error && <p style={{ color: '#C6302B', marginBottom: 16 }}>Gagal memuat data: {error.message}</p>}
++
++      <div className="admin-table-wrap">
++        <table className="admin-table">
++          <thead>
++            <tr>
++              <th>Foto</th>
++              <th>Judul</th>
++              <th>Kategori</th>
++              <th>Tanggal</th>
++              <th>Status</th>
++            </tr>
++          </thead>
++          <tbody>
++            {(posts || []).map((p) => (
++              <tr key={p.id}>
++                <td>
++                  {p.cover_image ? (
++                    <img src={p.cover_image} alt="" className="admin-thumb" />
++                  ) : (
++                    <div className="admin-thumb" />
++                  )}
++                </td>
++                <td>
++                  <Link href={`/admin/jurnal/${p.id}`}>{p.title}</Link>
++                </td>
++                <td>{journalCategoryLabel(p.category)}</td>
++                <td>{formatDate(p.event_date || p.published_at)}</td>
++                <td>
++                  <span className="admin-status">
++                    <span className="admin-status__dot" style={{ background: p.is_published ? '#16A34A' : '#9CA3AF' }} />
++                    {p.is_published ? 'Terbit' : 'Draft'}
++                  </span>
++                </td>
++              </tr>
++            ))}
++            {posts?.length === 0 && (
++              <tr>
++                <td colSpan={5} className="admin-empty">Belum ada postingan pada kategori ini.</td>
++              </tr>
++            )}
++          </tbody>
++        </table>
++      </div>
++    </section>
++  );
++}
+diff --git a/app/api/admin/hero/image/route.js b/app/api/admin/hero/image/route.js
+new file mode 100644
+index 0000000..f35c3e7
+--- /dev/null
++++ b/app/api/admin/hero/image/route.js
+@@ -0,0 +1,48 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const BUCKET = 'site-content';
++const MAX_SIZE = 8 * 1024 * 1024; // 8MB
++
++function extOf(filename) {
++  const m = /\.([a-z0-9]+)$/i.exec(filename || '');
++  return m ? m[1].toLowerCase() : 'jpg';
++}
++
++export async function POST(req) {
++  const supabase = getSupabaseAdmin();
++
++  const form = await req.formData().catch(() => null);
++  const file = form?.get('file');
++
++  if (!file || typeof file === 'string') {
++    return Response.json({ error: 'File gambar wajib dipilih.' }, { status: 400 });
++  }
++  if (file.size > MAX_SIZE) {
++    return Response.json({ error: 'Ukuran file maksimal 8MB.' }, { status: 400 });
++  }
++  if (!file.type?.startsWith('image/')) {
++    return Response.json({ error: 'File harus berupa gambar.' }, { status: 400 });
++  }
++
++  const path = `hero/home-${Date.now()}.${extOf(file.name)}`;
++  const arrayBuffer = await file.arrayBuffer();
++
++  const { error: uploadError } = await supabase.storage
++    .from(BUCKET)
++    .upload(path, arrayBuffer, { contentType: file.type, upsert: false });
++
++  if (uploadError) {
++    return Response.json({ error: `Gagal upload ke storage: ${uploadError.message}` }, { status: 500 });
++  }
++
++  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
++
++  const { error: updateError } = await supabase
++    .from('site_hero')
++    .update({ image_url: pub.publicUrl, updated_at: new Date().toISOString() })
++    .eq('key', 'home');
++
++  if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
++
++  return Response.json({ success: true, url: pub.publicUrl });
++}
+diff --git a/app/api/admin/hero/route.js b/app/api/admin/hero/route.js
+new file mode 100644
+index 0000000..6ecd3c6
+--- /dev/null
++++ b/app/api/admin/hero/route.js
+@@ -0,0 +1,27 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++export async function PATCH(req) {
++  const body = await req.json().catch(() => ({}));
++  const headline = (body.headline || '').trim();
++
++  if (!headline) return Response.json({ error: 'Headline wajib diisi.' }, { status: 400 });
++
++  const supabase = getSupabaseAdmin();
++  const { error } = await supabase
++    .from('site_hero')
++    .update({
++      eyebrow: body.eyebrow || null,
++      headline,
++      description: body.description || null,
++      cta_primary_label: body.cta_primary_label || null,
++      cta_primary_href: body.cta_primary_href || null,
++      cta_secondary_label: body.cta_secondary_label || null,
++      cta_secondary_href: body.cta_secondary_href || null,
++      updated_at: new Date().toISOString(),
++    })
++    .eq('key', 'home');
++
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/journal/[id]/images/[imageId]/route.js b/app/api/admin/journal/[id]/images/[imageId]/route.js
+new file mode 100644
+index 0000000..6b499aa
+--- /dev/null
++++ b/app/api/admin/journal/[id]/images/[imageId]/route.js
+@@ -0,0 +1,11 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++export async function DELETE(_req, { params }) {
++  const { imageId } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { error } = await supabase.from('journal_images').delete().eq('id', imageId);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/journal/[id]/images/route.js b/app/api/admin/journal/[id]/images/route.js
+new file mode 100644
+index 0000000..ca209a0
+--- /dev/null
++++ b/app/api/admin/journal/[id]/images/route.js
+@@ -0,0 +1,80 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const BUCKET = 'journal-images';
++const MAX_SIZE = 8 * 1024 * 1024; // 8MB
++
++function extOf(filename) {
++  const m = /\.([a-z0-9]+)$/i.exec(filename || '');
++  return m ? m[1].toLowerCase() : 'jpg';
++}
++
++export async function POST(req, { params }) {
++  const { id } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { data: post, error: postError } = await supabase
++    .from('journal_posts')
++    .select('id, slug')
++    .eq('id', id)
++    .single();
++  if (postError || !post) {
++    return Response.json({ error: 'Postingan tidak ditemukan.' }, { status: 404 });
++  }
++
++  const form = await req.formData().catch(() => null);
++  const file = form?.get('file');
++  const type = form?.get('image_type') || 'gallery'; // 'cover' | 'gallery'
++  const caption = form?.get('caption') || '';
++
++  if (!file || typeof file === 'string') {
++    return Response.json({ error: 'File gambar wajib dipilih.' }, { status: 400 });
++  }
++  if (!['cover', 'gallery'].includes(type)) {
++    return Response.json({ error: 'Jenis foto tidak valid.' }, { status: 400 });
++  }
++  if (file.size > MAX_SIZE) {
++    return Response.json({ error: 'Ukuran file maksimal 8MB.' }, { status: 400 });
++  }
++  if (!file.type?.startsWith('image/')) {
++    return Response.json({ error: 'File harus berupa gambar.' }, { status: 400 });
++  }
++
++  const stamp = Date.now();
++  const fileName = `${type}-${stamp}.${extOf(file.name)}`;
++  const path = `${post.slug}/${fileName}`;
++  const arrayBuffer = await file.arrayBuffer();
++
++  const { error: uploadError } = await supabase.storage
++    .from(BUCKET)
++    .upload(path, arrayBuffer, { contentType: file.type, upsert: false });
++
++  if (uploadError) {
++    return Response.json({ error: `Gagal upload ke storage: ${uploadError.message}` }, { status: 500 });
++  }
++
++  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
++
++  if (type === 'cover') {
++    const { error: updateError } = await supabase
++      .from('journal_posts')
++      .update({ cover_image: pub.publicUrl })
++      .eq('id', id);
++    if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
++    return Response.json({ success: true, url: pub.publicUrl });
++  }
++
++  const { count } = await supabase
++    .from('journal_images')
++    .select('id', { count: 'exact', head: true })
++    .eq('post_id', id);
++
++  const { data: row, error: insertError } = await supabase
++    .from('journal_images')
++    .insert({ post_id: id, url: pub.publicUrl, caption: caption || null, sort_order: count || 0 })
++    .select('id, url, caption, sort_order')
++    .single();
++
++  if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
++
++  return Response.json({ success: true, image: row });
++}
+diff --git a/app/api/admin/journal/[id]/route.js b/app/api/admin/journal/[id]/route.js
+new file mode 100644
+index 0000000..c51caf0
+--- /dev/null
++++ b/app/api/admin/journal/[id]/route.js
+@@ -0,0 +1,57 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const VALID_CATEGORIES = ['berita', 'event', 'portofolio'];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export async function PATCH(req, { params }) {
++  const { id } = await params;
++  const body = await req.json().catch(() => ({}));
++
++  const title = (body.title || '').trim();
++  const category = body.category;
++  const slug = slugify(body.slug || body.title);
++
++  if (!title) return Response.json({ error: 'Judul wajib diisi.' }, { status: 400 });
++  if (!VALID_CATEGORIES.includes(category)) {
++    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
++  }
++  if (!slug) return Response.json({ error: 'Slug wajib diisi.' }, { status: 400 });
++
++  const supabase = getSupabaseAdmin();
++  const { error } = await supabase
++    .from('journal_posts')
++    .update({
++      title,
++      slug,
++      category,
++      excerpt: body.excerpt || null,
++      content: body.content || null,
++      event_date: body.event_date || null,
++      is_published: body.is_published !== false,
++    })
++    .eq('id', id);
++
++  if (error) {
++    const msg = error.code === '23505' ? 'Slug ini sudah dipakai postingan lain.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true });
++}
++
++export async function DELETE(_req, { params }) {
++  const { id } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { error } = await supabase.from('journal_posts').delete().eq('id', id);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/journal/route.js b/app/api/admin/journal/route.js
+new file mode 100644
+index 0000000..a2f5f9d
+--- /dev/null
++++ b/app/api/admin/journal/route.js
+@@ -0,0 +1,47 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++const VALID_CATEGORIES = ['berita', 'event', 'portofolio'];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export async function POST(req) {
++  const body = await req.json().catch(() => ({}));
++  const title = (body.title || '').trim();
++  const category = body.category;
++  const slug = slugify(body.slug || body.title);
++
++  if (!title) return Response.json({ error: 'Judul wajib diisi.' }, { status: 400 });
++  if (!VALID_CATEGORIES.includes(category)) {
++    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
++  }
++  if (!slug) return Response.json({ error: 'Slug wajib diisi (atau judul harus menghasilkan slug yang valid).' }, { status: 400 });
++
++  const supabase = getSupabaseAdmin();
++  const { data, error } = await supabase
++    .from('journal_posts')
++    .insert({
++      title,
++      slug,
++      category,
++      excerpt: body.excerpt || null,
++      content: body.content || null,
++      event_date: body.event_date || null,
++      is_published: body.is_published !== false,
++      published_at: new Date().toISOString(),
++    })
++    .select('id, slug')
++    .single();
++
++  if (error) {
++    const msg = error.code === '23505' ? 'Slug ini sudah dipakai postingan lain.' : error.message;
++    return Response.json({ error: msg }, { status: 500 });
++  }
++
++  return Response.json({ success: true, id: data.id, slug: data.slug });
++}
+diff --git a/app/page.js b/app/page.js
+index 453554a..eac0911 100644
+--- a/app/page.js
++++ b/app/page.js
+@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
+ import Link from 'next/link';
+ import { getProductRow } from '@/lib/products';
+ import { getJournalPosts } from '@/lib/journal';
++import { getActiveHero } from '@/lib/hero';
+ import ProductGrid from '@/components/ProductGrid';
+ import JournalCard from '@/components/JournalCard';
+  
+@@ -10,29 +11,41 @@ export default async function HomePage() {
+   // Flat catalog feed — no category param means all categories mixed together,
+   // shown as a single dense grid right below the hero (reference-site pattern:
+   // no "Kategori" intermediary, straight into the product wall).
+-  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts] = await Promise.all([
++  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts, hero] = await Promise.all([
+     getProductRow(null, 24, 'newest', '', { excludeCustom: true }),
+     getProductRow('daily', 4),
+     getProductRow('sport', 4),
+     getProductRow('basic', 4),
+     getJournalPosts(null, 3),
++    getActiveHero(),
+   ]);
+  
+   return (
+     <>
+-      {/* HERO */}
++      {/* HERO — foto & teks diatur dari /admin/campaign, lihat lib/hero.js */}
+       <section className="hero">
+         <div
+           className="hero__bg"
+-          style={{ backgroundImage: "url('/hero-1.jpg')" }}
++          style={{ backgroundImage: `url('${hero.image}')` }}
+         />
+         <div className="wrap hero__content">
+-          <span className="eyebrow" style={{ color: '#fff' }}>Move Faster Collection</span>
+-          <h1>MOVE<br />FASTER.</h1>
+-          <p>Langkah lebih ringan, sirkulasi udara lebih bebas. Tingkatkan outfit-mu bersama GUDARA.</p>
++          {hero.eyebrow && <span className="eyebrow" style={{ color: '#fff' }}>{hero.eyebrow}</span>}
++          <h1>
++            {hero.headline.split('\n').map((line, i, arr) => (
++              <span key={i}>
++                {line}
++                {i < arr.length - 1 && <br />}
++              </span>
++            ))}
++          </h1>
++          {hero.description && <p>{hero.description}</p>}
+           <div className="hero__ctas">
+-            <Link href="/etalase" className="btn btn--accent">Belanja Sekarang</Link>
+-            <Link href="/custom" className="btn btn--outline">Mulai Custom Jersey</Link>
++            {hero.ctaPrimaryLabel && hero.ctaPrimaryHref && (
++              <Link href={hero.ctaPrimaryHref} className="btn btn--accent">{hero.ctaPrimaryLabel}</Link>
++            )}
++            {hero.ctaSecondaryLabel && hero.ctaSecondaryHref && (
++              <Link href={hero.ctaSecondaryHref} className="btn btn--outline">{hero.ctaSecondaryLabel}</Link>
++            )}
+           </div>
+         </div>
+       </section>
+diff --git a/components/AdminNav.jsx b/components/AdminNav.jsx
+index 7c9d594..a8fa38c 100644
+--- a/components/AdminNav.jsx
++++ b/components/AdminNav.jsx
+@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
+ const LINKS = [
+   { href: '/admin/pesanan', label: 'Pesanan' },
+   { href: '/admin/produk', label: 'Produk' },
++  { href: '/admin/jurnal', label: 'Jurnal' },
++  { href: '/admin/campaign', label: 'Campaign' },
+ ];
+ 
+ export default function AdminNav() {
+diff --git a/components/HeroForm.jsx b/components/HeroForm.jsx
+new file mode 100644
+index 0000000..afd06f1
+--- /dev/null
++++ b/components/HeroForm.jsx
+@@ -0,0 +1,152 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++export default function HeroForm({ hero }) {
++  const router = useRouter();
++
++  const [eyebrow, setEyebrow] = useState(hero?.eyebrow || '');
++  const [headline, setHeadline] = useState(hero?.headline || '');
++  const [description, setDescription] = useState(hero?.description || '');
++  const [ctaPrimaryLabel, setCtaPrimaryLabel] = useState(hero?.cta_primary_label || '');
++  const [ctaPrimaryHref, setCtaPrimaryHref] = useState(hero?.cta_primary_href || '');
++  const [ctaSecondaryLabel, setCtaSecondaryLabel] = useState(hero?.cta_secondary_label || '');
++  const [ctaSecondaryHref, setCtaSecondaryHref] = useState(hero?.cta_secondary_href || '');
++  const [imageUrl, setImageUrl] = useState(hero?.image_url || '');
++  const [imageFile, setImageFile] = useState(null);
++
++  const [saving, setSaving] = useState(false);
++  const [uploading, setUploading] = useState(false);
++  const [msg, setMsg] = useState('');
++  const [msgOk, setMsgOk] = useState(false);
++
++  async function handleSave(e) {
++    e.preventDefault();
++    setSaving(true);
++    setMsg('');
++    try {
++      const res = await fetch('/api/admin/hero', {
++        method: 'PATCH',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({
++          eyebrow,
++          headline,
++          description,
++          cta_primary_label: ctaPrimaryLabel,
++          cta_primary_href: ctaPrimaryHref,
++          cta_secondary_label: ctaSecondaryLabel,
++          cta_secondary_href: ctaSecondaryHref,
++        }),
++      });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menyimpan campaign.');
++        return;
++      }
++      setMsgOk(true);
++      setMsg('Perubahan tersimpan. Cek beranda untuk lihat hasilnya.');
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  async function handleImageUpload(e) {
++    e.preventDefault();
++    if (!imageFile) { setMsgOk(false); setMsg('Pilih file foto dulu.'); return; }
++    setUploading(true);
++    setMsg('');
++    try {
++      const form = new FormData();
++      form.set('file', imageFile);
++      const res = await fetch('/api/admin/hero/image', { method: 'POST', body: form });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal upload foto.');
++        return;
++      }
++      setImageUrl(data.url);
++      setImageFile(null);
++      if (e.target.reset) e.target.reset();
++      setMsgOk(true);
++      setMsg('Foto hero berhasil diupload.');
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setUploading(false);
++    }
++  }
++
++  return (
++    <>
++      <div className="admin-card">
++        <div className="admin-section-label" style={{ marginTop: 0 }}>Foto Hero</div>
++        {imageUrl && (
++          <div className="admin-image-grid" style={{ marginBottom: 16 }}>
++            <div className="admin-image-tile" style={{ aspectRatio: '16/9', width: '100%', maxWidth: 480 }}>
++              <img src={imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
++            </div>
++          </div>
++        )}
++        <form onSubmit={handleImageUpload} className="admin-upload-row">
++          <div className="field">
++            <label>File Foto Baru (disarankan landscape, min. 1600px lebar)</label>
++            <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
++          </div>
++          <button className="btn btn--dark" disabled={uploading} style={{ height: 46 }}>
++            {uploading ? 'Mengupload...' : 'Ganti Foto Hero'}
++          </button>
++        </form>
++      </div>
++
++      <form onSubmit={handleSave} className="admin-card">
++        <div className="admin-section-label" style={{ marginTop: 0 }}>Teks & Tombol Campaign</div>
++        <div className="admin-form-grid">
++          <div className="field field--full">
++            <label>Eyebrow (label kecil di atas judul)</label>
++            <input value={eyebrow} onChange={(e) => setEyebrow(e.target.value)} placeholder="Move Faster Collection" />
++          </div>
++          <div className="field field--full">
++            <label>Headline (Enter = baris baru, seperti "MOVE / FASTER.")</label>
++            <textarea value={headline} onChange={(e) => setHeadline(e.target.value)} rows={2} required />
++          </div>
++          <div className="field field--full">
++            <label>Deskripsi</label>
++            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
++          </div>
++          <div className="field">
++            <label>Label Tombol Utama</label>
++            <input value={ctaPrimaryLabel} onChange={(e) => setCtaPrimaryLabel(e.target.value)} placeholder="Belanja Sekarang" />
++          </div>
++          <div className="field">
++            <label>Link Tombol Utama</label>
++            <input value={ctaPrimaryHref} onChange={(e) => setCtaPrimaryHref(e.target.value)} placeholder="/etalase" />
++          </div>
++          <div className="field">
++            <label>Label Tombol Kedua (opsional)</label>
++            <input value={ctaSecondaryLabel} onChange={(e) => setCtaSecondaryLabel(e.target.value)} placeholder="Mulai Custom Jersey" />
++          </div>
++          <div className="field">
++            <label>Link Tombol Kedua (opsional)</label>
++            <input value={ctaSecondaryHref} onChange={(e) => setCtaSecondaryHref(e.target.value)} placeholder="/custom" />
++          </div>
++        </div>
++
++        <div className="admin-actions">
++          <button className="btn btn--dark" disabled={saving}>
++            {saving ? 'Menyimpan...' : 'Simpan Campaign'}
++          </button>
++          {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B' }}>{msg}</p>}
++        </div>
++      </form>
++    </>
++  );
++}
+diff --git a/components/JournalForm.jsx b/components/JournalForm.jsx
+new file mode 100644
+index 0000000..9af105b
+--- /dev/null
++++ b/components/JournalForm.jsx
+@@ -0,0 +1,183 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++const CATEGORIES = [
++  { value: 'berita', label: 'Berita' },
++  { value: 'event', label: 'Event' },
++  { value: 'portofolio', label: 'Portofolio' },
++];
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export default function JournalForm({ mode, post }) {
++  const router = useRouter();
++  const isEdit = mode === 'edit';
++
++  const [title, setTitle] = useState(post?.title || '');
++  const [slug, setSlug] = useState(post?.slug || '');
++  const [slugTouched, setSlugTouched] = useState(isEdit);
++  const [category, setCategory] = useState(post?.category || 'berita');
++  const [excerpt, setExcerpt] = useState(post?.excerpt || '');
++  const [content, setContent] = useState(post?.content || '');
++  const [eventDate, setEventDate] = useState(post?.event_date || '');
++  const [isPublished, setIsPublished] = useState(post?.is_published ?? true);
++
++  const [loading, setLoading] = useState(false);
++  const [deleting, setDeleting] = useState(false);
++  const [msg, setMsg] = useState('');
++  const [msgOk, setMsgOk] = useState(false);
++
++  function handleTitleChange(v) {
++    setTitle(v);
++    if (!slugTouched) setSlug(slugify(v));
++  }
++
++  async function handleSubmit(e) {
++    e.preventDefault();
++    setLoading(true);
++    setMsg('');
++
++    const payload = {
++      title,
++      slug,
++      category,
++      excerpt,
++      content,
++      event_date: eventDate || null,
++      is_published: isPublished,
++    };
++
++    try {
++      const url = isEdit ? `/api/admin/journal/${post.id}` : '/api/admin/journal';
++      const res = await fetch(url, {
++        method: isEdit ? 'PATCH' : 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify(payload),
++      });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menyimpan postingan.');
++        return;
++      }
++      if (isEdit) {
++        setMsgOk(true);
++        setMsg('Perubahan tersimpan.');
++        router.refresh();
++      } else {
++        router.push(`/admin/jurnal/${data.id}`);
++      }
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setLoading(false);
++    }
++  }
++
++  async function handleDelete() {
++    if (!confirm(`Hapus postingan "${post.title}"? Foto yang menempel juga akan terhapus. Tindakan ini tidak bisa dibatalkan.`)) {
++      return;
++    }
++    setDeleting(true);
++    try {
++      const res = await fetch(`/api/admin/journal/${post.id}`, { method: 'DELETE' });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menghapus postingan.');
++        setDeleting(false);
++        return;
++      }
++      router.push('/admin/jurnal');
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++      setDeleting(false);
++    }
++  }
++
++  return (
++    <form onSubmit={handleSubmit} className="admin-card">
++      <div className="admin-form-grid">
++        <div className="field field--full">
++          <label>Judul</label>
++          <input value={title} onChange={(e) => handleTitleChange(e.target.value)} required />
++        </div>
++        <div className="field">
++          <label>Slug (URL)</label>
++          <input
++            value={slug}
++            onChange={(e) => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
++            required
++          />
++        </div>
++        <div className="field">
++          <label>Kategori</label>
++          <select value={category} onChange={(e) => setCategory(e.target.value)}>
++            {CATEGORIES.map((c) => (
++              <option key={c.value} value={c.value}>{c.label}</option>
++            ))}
++          </select>
++        </div>
++        <div className="field">
++          <label>Tanggal Event (opsional)</label>
++          <input type="date" value={eventDate || ''} onChange={(e) => setEventDate(e.target.value)} />
++        </div>
++        <div className="field field--checkbox" style={{ alignSelf: 'end', marginBottom: 16 }}>
++          <input
++            type="checkbox"
++            id="is_published"
++            checked={isPublished}
++            onChange={(e) => setIsPublished(e.target.checked)}
++          />
++          <label htmlFor="is_published" style={{ textTransform: 'none', fontFamily: 'var(--body)', fontSize: 14, color: 'var(--ink)' }}>
++            Terbitkan (tampil di /jurnal)
++          </label>
++        </div>
++        <div className="field field--full">
++          <label>Ringkasan (tampil di kartu jurnal)</label>
++          <textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} />
++        </div>
++        <div className="field field--full">
++          <label>Isi Postingan</label>
++          <textarea
++            value={content}
++            onChange={(e) => setContent(e.target.value)}
++            rows={12}
++            placeholder="Pisahkan tiap paragraf dengan baris kosong."
++          />
++        </div>
++      </div>
++
++      <div className="admin-actions" style={{ justifyContent: 'space-between' }}>
++        <div style={{ display: 'flex', gap: 8 }}>
++          <button className="btn btn--dark" disabled={loading}>
++            {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Postingan'}
++          </button>
++        </div>
++        {isEdit && (
++          <button
++            type="button"
++            className="btn btn--outline"
++            style={{ color: '#C6302B', borderColor: '#C6302B' }}
++            disabled={deleting}
++            onClick={handleDelete}
++          >
++            {deleting ? 'Menghapus...' : 'Hapus Postingan'}
++          </button>
++        )}
++        {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B' }}>{msg}</p>}
++      </div>
++    </form>
++  );
++}
+diff --git a/components/JournalImages.jsx b/components/JournalImages.jsx
+new file mode 100644
+index 0000000..451d499
+--- /dev/null
++++ b/components/JournalImages.jsx
+@@ -0,0 +1,149 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++export default function JournalImages({ postId, coverUrl, gallery = [] }) {
++  const router = useRouter();
++  const [coverFile, setCoverFile] = useState(null);
++  const [galleryFile, setGalleryFile] = useState(null);
++  const [caption, setCaption] = useState('');
++  const [uploadingCover, setUploadingCover] = useState(false);
++  const [uploadingGallery, setUploadingGallery] = useState(false);
++  const [removingId, setRemovingId] = useState(null);
++  const [msg, setMsg] = useState('');
++  const [msgOk, setMsgOk] = useState(false);
++
++  async function upload(file, type, extra = {}) {
++    const form = new FormData();
++    form.set('file', file);
++    form.set('image_type', type);
++    Object.entries(extra).forEach(([k, v]) => form.set(k, v));
++    const res = await fetch(`/api/admin/journal/${postId}/images`, { method: 'POST', body: form });
++    const data = await res.json().catch(() => ({}));
++    if (!res.ok) throw new Error(data.error || 'Gagal upload foto.');
++    return data;
++  }
++
++  async function handleCoverUpload(e) {
++    e.preventDefault();
++    if (!coverFile) { setMsgOk(false); setMsg('Pilih file cover dulu.'); return; }
++    setUploadingCover(true);
++    setMsg('');
++    try {
++      await upload(coverFile, 'cover');
++      setCoverFile(null);
++      if (e.target.reset) e.target.reset();
++      setMsgOk(true);
++      setMsg('Foto cover berhasil diupload.');
++      router.refresh();
++    } catch (err) {
++      setMsgOk(false);
++      setMsg(err.message);
++    } finally {
++      setUploadingCover(false);
++    }
++  }
++
++  async function handleGalleryUpload(e) {
++    e.preventDefault();
++    if (!galleryFile) { setMsgOk(false); setMsg('Pilih file galeri dulu.'); return; }
++    setUploadingGallery(true);
++    setMsg('');
++    try {
++      await upload(galleryFile, 'gallery', { caption });
++      setGalleryFile(null);
++      setCaption('');
++      if (e.target.reset) e.target.reset();
++      setMsgOk(true);
++      setMsg('Foto galeri berhasil diupload.');
++      router.refresh();
++    } catch (err) {
++      setMsgOk(false);
++      setMsg(err.message);
++    } finally {
++      setUploadingGallery(false);
++    }
++  }
++
++  async function handleRemove(imageId) {
++    if (!confirm('Hapus foto ini?')) return;
++    setRemovingId(imageId);
++    try {
++      const res = await fetch(`/api/admin/journal/${postId}/images/${imageId}`, { method: 'DELETE' });
++      const data = await res.json().catch(() => ({}));
++      if (!res.ok) {
++        setMsgOk(false);
++        setMsg(data.error || 'Gagal menghapus foto.');
++        return;
++      }
++      router.refresh();
++    } catch {
++      setMsgOk(false);
++      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
++    } finally {
++      setRemovingId(null);
++    }
++  }
++
++  return (
++    <div className="admin-card">
++      <div className="admin-section-label" style={{ marginTop: 0 }}>Foto Cover</div>
++      <form onSubmit={handleCoverUpload} className="admin-upload-row">
++        <div className="field">
++          <label>File Cover</label>
++          <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />
++        </div>
++        <button className="btn btn--dark" disabled={uploadingCover} style={{ height: 46 }}>
++          {uploadingCover ? 'Mengupload...' : 'Upload Cover'}
++        </button>
++      </form>
++      {coverUrl ? (
++        <div className="admin-image-grid" style={{ marginBottom: 16 }}>
++          <div className="admin-image-tile">
++            <img src={coverUrl} alt="" />
++          </div>
++        </div>
++      ) : (
++        <p className="admin-image-empty">Belum ada foto cover.</p>
++      )}
++
++      <div className="admin-section-label">Foto Galeri Tambahan</div>
++      <form onSubmit={handleGalleryUpload} className="admin-upload-row">
++        <div className="field">
++          <label>File</label>
++          <input type="file" accept="image/*" onChange={(e) => setGalleryFile(e.target.files?.[0] || null)} />
++        </div>
++        <div className="field">
++          <label>Keterangan (opsional)</label>
++          <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Keterangan foto" />
++        </div>
++        <button className="btn btn--dark" disabled={uploadingGallery} style={{ height: 46 }}>
++          {uploadingGallery ? 'Mengupload...' : 'Upload Foto'}
++        </button>
++      </form>
++      {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginBottom: 16 }}>{msg}</p>}
++
++      {gallery.length === 0 ? (
++        <p className="admin-image-empty">Belum ada foto galeri.</p>
++      ) : (
++        <div className="admin-image-grid">
++          {gallery.map((img) => (
++            <div key={img.id} className="admin-image-tile">
++              <img src={img.url} alt={img.caption || ''} />
++              <button
++                type="button"
++                className="admin-image-tile__remove"
++                disabled={removingId === img.id}
++                onClick={() => handleRemove(img.id)}
++                aria-label="Hapus foto"
++              >
++                ×
++              </button>
++            </div>
++          ))}
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/lib/hero.js b/lib/hero.js
+new file mode 100644
+index 0000000..bf0f159
+--- /dev/null
++++ b/lib/hero.js
+@@ -0,0 +1,46 @@
++import { getSupabase } from './supabase';
++
++// Fallback dipakai kalau baris 'home' belum ada di site_hero (mis. migrasi
++// SQL belum dijalankan) atau query gagal — beranda tidak boleh sampai
++// tampil kosong/error hanya gara-gara hero belum diisi.
++const FALLBACK_HERO = {
++  eyebrow: 'Move Faster Collection',
++  headline: 'MOVE FASTER.',
++  description: 'Langkah lebih ringan, sirkulasi udara lebih bebas. Tingkatkan outfit-mu bersama GUDARA.',
++  image: '/hero-1.jpg',
++  ctaPrimaryLabel: 'Belanja Sekarang',
++  ctaPrimaryHref: '/etalase',
++  ctaSecondaryLabel: 'Mulai Custom Jersey',
++  ctaSecondaryHref: '/custom',
++};
++
++function normalizeHero(row) {
++  if (!row) return FALLBACK_HERO;
++  return {
++    eyebrow: row.eyebrow || '',
++    headline: row.headline || FALLBACK_HERO.headline,
++    description: row.description || '',
++    image: row.image_url || FALLBACK_HERO.image,
++    ctaPrimaryLabel: row.cta_primary_label || '',
++    ctaPrimaryHref: row.cta_primary_href || '',
++    ctaSecondaryLabel: row.cta_secondary_label || '',
++    ctaSecondaryHref: row.cta_secondary_href || '',
++  };
++}
++
++// Hero/campaign aktif di beranda. Dipanggil dari app/page.js (client publik,
++// jadi pakai anon key + RLS "Public can read hero").
++export async function getActiveHero() {
++  const supabase = getSupabase();
++  const { data, error } = await supabase
++    .from('site_hero')
++    .select('eyebrow, headline, description, image_url, cta_primary_label, cta_primary_href, cta_secondary_label, cta_secondary_href')
++    .eq('key', 'home')
++    .single();
++
++  if (error) {
++    console.error('getActiveHero failed:', error.message);
++    return FALLBACK_HERO;
++  }
++  return normalizeHero(data);
++}
+diff --git a/supabase/2026-09-hero-and-journal-storage.sql b/supabase/2026-09-hero-and-journal-storage.sql
+new file mode 100644
+index 0000000..006be5d
+--- /dev/null
++++ b/supabase/2026-09-hero-and-journal-storage.sql
+@@ -0,0 +1,101 @@
++-- =====================================================
++-- GUDARA — Hero/Campaign section + storage buckets pendukung
++-- Jalankan di: Supabase Dashboard → SQL Editor → New Query
++-- Aman dijalankan ulang (semua pakai IF NOT EXISTS / ON CONFLICT).
++-- =====================================================
++
++-- ---------- HERO / CAMPAIGN (beranda) ----------
++-- Satu baris = satu campaign hero yang sedang tayang di beranda.
++-- Admin selalu update baris dengan key = 'home' (bukan bikin baris baru),
++-- jadi tabel ini berfungsi sebagai "slot konten" tunggal, bukan daftar.
++create table if not exists site_hero (
++  id                    uuid primary key default gen_random_uuid(),
++  key                   text unique not null default 'home',
++  eyebrow               text,
++  headline              text not null default 'MOVE FASTER.',
++  description           text,
++  image_url             text,
++  cta_primary_label     text,
++  cta_primary_href      text,
++  cta_secondary_label   text,
++  cta_secondary_href    text,
++  updated_at            timestamptz not null default now()
++);
++
++-- Baris awal, isinya sama seperti hero statis yang ada sekarang di app/page.js
++-- — supaya begitu fitur ini aktif, tampilan beranda tidak berubah dulu
++-- sampai admin sengaja menggantinya lewat /admin/campaign.
++insert into site_hero (key, eyebrow, headline, description, image_url, cta_primary_label, cta_primary_href, cta_secondary_label, cta_secondary_href)
++values (
++  'home',
++  'Move Faster Collection',
++  'MOVE FASTER.',
++  'Langkah lebih ringan, sirkulasi udara lebih bebas. Tingkatkan outfit-mu bersama GUDARA.',
++  '/hero-1.jpg',
++  'Belanja Sekarang',
++  '/etalase',
++  'Mulai Custom Jersey',
++  '/custom'
++)
++on conflict (key) do nothing;
++
++alter table site_hero enable row level security;
++
++drop policy if exists "Public can read hero" on site_hero;
++create policy "Public can read hero"
++  on site_hero for select
++  using (true);
++
++-- Insert/update hanya lewat backend (service role di /api/admin/hero),
++-- jadi sengaja tidak dibuatkan policy insert/update publik.
++
++-- ---------- JURNAL (safety net) ----------
++-- Tabel ini kemungkinan SUDAH ADA di database kamu (halaman /jurnal sudah
++-- jalan). IF NOT EXISTS di sini cuma jaring pengaman kalau ternyata belum
++-- ada — tidak akan menyentuh/mengubah tabel yang sudah ada.
++create table if not exists journal_posts (
++  id            uuid primary key default gen_random_uuid(),
++  slug          text unique not null,
++  title         text not null,
++  category      text not null default 'berita',   -- 'berita' | 'event' | 'portofolio'
++  excerpt       text,
++  content       text,
++  cover_image   text,
++  event_date    date,
++  is_published  boolean not null default true,
++  published_at  timestamptz not null default now(),
++  created_at    timestamptz not null default now()
++);
++
++create table if not exists journal_images (
++  id            uuid primary key default gen_random_uuid(),
++  post_id       uuid not null references journal_posts(id) on delete cascade,
++  url           text not null,
++  caption       text,
++  sort_order    integer not null default 0
++);
++
++alter table journal_posts enable row level security;
++alter table journal_images enable row level security;
++
++drop policy if exists "Public can read published journal posts" on journal_posts;
++create policy "Public can read published journal posts"
++  on journal_posts for select
++  using (is_published = true);
++
++drop policy if exists "Public can read journal images" on journal_images;
++create policy "Public can read journal images"
++  on journal_images for select
++  using (true);
++
++-- ---------- STORAGE BUCKETS ----------
++-- Bucket baru untuk foto jurnal & materi campaign. Bucket publik (sama
++-- seperti 'product-images' yang sudah dipakai), supaya getPublicUrl() dari
++-- storage langsung bisa diakses browser tanpa signed URL.
++insert into storage.buckets (id, name, public)
++values ('journal-images', 'journal-images', true)
++on conflict (id) do nothing;
++
++insert into storage.buckets (id, name, public)
++values ('site-content', 'site-content', true)
++on conflict (id) do nothing;
