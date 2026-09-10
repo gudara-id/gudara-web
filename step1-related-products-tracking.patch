@@ -1,0 +1,233 @@
+From 0fb6b1766adacd6b5a1cf0e4eb45b2ef678f5e27 Mon Sep 17 00:00:00 2001
+From: Claude Assistant <assistant@gudara.local>
+Date: Thu, 10 Sep 2026 07:57:14 +0000
+Subject: [PATCH] feat: tracking related products
+
+---
+ app/produk/[slug]/page.js             |  7 +++++-
+ components/ProductCard.jsx            | 21 +++++++++++-----
+ components/ProductGrid.jsx            |  3 ++-
+ components/RelatedProductsSection.jsx | 22 +++++++++++++++++
+ lib/productEvents.js                  | 35 +++++++++++++++++++++++++++
+ supabase/product-events.sql           | 34 ++++++++++++++++++++++++++
+ 6 files changed, 114 insertions(+), 8 deletions(-)
+ create mode 100644 components/RelatedProductsSection.jsx
+ create mode 100644 lib/productEvents.js
+ create mode 100644 supabase/product-events.sql
+
+diff --git a/app/produk/[slug]/page.js b/app/produk/[slug]/page.js
+index c1a45e7..b826279 100644
+--- a/app/produk/[slug]/page.js
++++ b/app/produk/[slug]/page.js
+@@ -9,6 +9,7 @@ import ProductGalleryConnected from '@/components/ProductGalleryConnected';
+ import { ProductVariantProvider } from '@/components/ProductVariantContext';
+ import ProductAccordion from '@/components/ProductAccordion';
+ import ProductGrid from '@/components/ProductGrid';
++import RelatedProductsSection from '@/components/RelatedProductsSection';
+ import DesignRefGrid from '@/components/DesignRefGrid';
+ import CollarOptionsGrid from '@/components/CollarOptionsGrid';
+ import MaterialCatalogGrid from '@/components/MaterialCatalogGrid';
+@@ -240,7 +241,11 @@ export default async function ProductPage({ params }) {
+             </div>
+             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
+           </div>
+-          <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
++          <RelatedProductsSection
++            products={related}
++            variant={product.kat === 'custom' ? 'custom' : 'shop'}
++            sourceProductId={product.id}
++          />
+         </section>
+       )}
+  
+diff --git a/components/ProductCard.jsx b/components/ProductCard.jsx
+index fff26fd..d2c80d7 100644
+--- a/components/ProductCard.jsx
++++ b/components/ProductCard.jsx
+@@ -4,14 +4,22 @@ import Link from 'next/link';
+ import Image from 'next/image';
+ import { useCart } from '@/lib/cart-context';
+ import { formatRp } from '@/lib/format';
++import { logProductEvent } from '@/lib/productEvents';
+ 
+-export default function ProductCard({ product, variant = 'shop' }) {
++export default function ProductCard({ product, variant = 'shop', trackSourceProductId }) {
+   const { addToCart } = useCart();
+   const isCustom = variant === 'custom';
+ 
++  // trackSourceProductId cuma diisi kalau card ini dirender di dalam section
++  // "Kamu Mungkin Juga Suka" (lihat RelatedProductsSection) — di grid etalase
++  // biasa nilainya undefined, jadi tidak ada tracking tambahan di sana.
++  function handleRelatedClick() {
++    if (trackSourceProductId) logProductEvent('related_click', trackSourceProductId, product.id);
++  }
++
+   return (
+     <div className="p-card">
+-      <Link href={`/produk/${product.slug}`}>
++      <Link href={`/produk/${product.slug}`} onClick={handleRelatedClick}>
+         <div className="p-card__img">
+           {product.off && <span className="p-card__badge">{product.off}</span>}
+           {isCustom && <span className="p-card__moq-ribbon">Min. Order 12 pcs</span>}
+@@ -37,7 +45,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
+       </Link>
+       <div className="p-card__body">
+         <div className="eyebrow">GUDARA</div>
+-        <Link href={`/produk/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
++        <Link href={`/produk/${product.slug}`} onClick={handleRelatedClick} style={{ textDecoration: 'none', color: 'inherit' }}>
+           <div className="p-card__name">{product.name}</div>
+         </Link>
+         <div className="p-card__prices">
+@@ -60,15 +68,16 @@ export default function ProductCard({ product, variant = 'shop' }) {
+         ) : (
+           <button
+             className="p-card__add"
+-            onClick={() =>
++            onClick={() => {
++              if (trackSourceProductId) logProductEvent('related_add_to_cart', trackSourceProductId, product.id);
+               addToCart({
+                 id: product.id,
+                 name: product.name,
+                 price: product.price,
+                 image: product.image,
+                 variant: '',
+-              })
+-            }
++              });
++            }}
+           >
+             + Keranjang
+           </button>
+diff --git a/components/ProductGrid.jsx b/components/ProductGrid.jsx
+index 9fbe4e2..9395c43 100644
+--- a/components/ProductGrid.jsx
++++ b/components/ProductGrid.jsx
+@@ -5,6 +5,7 @@ export default function ProductGrid({
+   emptyLabel = 'Belum ada produk di kategori ini.',
+   className = '',
+   variant = 'shop',
++  trackSourceProductId,
+ }) {
+   if (!products || products.length === 0) {
+     return <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>{emptyLabel}</p>;
+@@ -12,7 +13,7 @@ export default function ProductGrid({
+   return (
+     <div className={`p-grid ${className}`.trim()}>
+       {products.map((p) => (
+-        <ProductCard key={p.id} product={p} variant={variant} />
++        <ProductCard key={p.id} product={p} variant={variant} trackSourceProductId={trackSourceProductId} />
+       ))}
+     </div>
+   );
+diff --git a/components/RelatedProductsSection.jsx b/components/RelatedProductsSection.jsx
+new file mode 100644
+index 0000000..44ddeb8
+--- /dev/null
++++ b/components/RelatedProductsSection.jsx
+@@ -0,0 +1,22 @@
++'use client';
++
++import { useEffect, useRef } from 'react';
++import ProductGrid from './ProductGrid';
++import { logProductEvent } from '@/lib/productEvents';
++
++// Bungkus ProductGrid khusus untuk section "Kamu Mungkin Juga Suka" —
++// mencatat 'related_view' sekali per produk yang ditampilkan saat section
++// ini muncul, dan meneruskan sourceProductId ke ProductCard supaya klik /
++// add-to-cart dari section ini ikut tercatat sebagai 'related_click' /
++// 'related_add_to_cart' (lihat lib/productEvents.js untuk cara baca datanya).
++export default function RelatedProductsSection({ products, variant, sourceProductId }) {
++  const loggedRef = useRef(false);
++
++  useEffect(() => {
++    if (loggedRef.current || !products?.length) return;
++    loggedRef.current = true;
++    products.forEach((p) => logProductEvent('related_view', sourceProductId, p.id));
++  }, [products, sourceProductId]);
++
++  return <ProductGrid products={products} variant={variant} trackSourceProductId={sourceProductId} />;
++}
+diff --git a/lib/productEvents.js b/lib/productEvents.js
+new file mode 100644
+index 0000000..d85ab7b
+--- /dev/null
++++ b/lib/productEvents.js
+@@ -0,0 +1,35 @@
++'use client';
++
++import { getSupabase } from './supabase';
++
++// Id sesi sederhana biar bisa hitung sesi unik, tanpa perlu login.
++// sessionStorage (bukan localStorage) supaya reset tiap sesi tab baru —
++// cukup untuk analitik related-products, bukan untuk fitur yang butuh
++// identitas persisten.
++function getSessionId() {
++  if (typeof window === 'undefined') return null;
++  const KEY = 'gudara_session_id';
++  let id = window.sessionStorage.getItem(KEY);
++  if (!id) {
++    id = crypto.randomUUID();
++    window.sessionStorage.setItem(KEY, id);
++  }
++  return id;
++}
++
++// Dipakai section "Kamu Mungkin Juga Suka" untuk mencatat view/click/add-to-cart
++// pada produk terkait. Gagal diam-diam (fire-and-forget) — tracking tidak
++// boleh pernah mengganggu pengalaman belanja.
++export async function logProductEvent(eventType, sourceProductId, targetProductId) {
++  try {
++    const supabase = getSupabase();
++    await supabase.from('product_events').insert({
++      event_type: eventType,
++      source_product_id: sourceProductId || null,
++      target_product_id: targetProductId,
++      session_id: getSessionId(),
++    });
++  } catch (err) {
++    console.error('Gagal mencatat product event:', err?.message);
++  }
++}
+diff --git a/supabase/product-events.sql b/supabase/product-events.sql
+new file mode 100644
+index 0000000..60e7954
+--- /dev/null
++++ b/supabase/product-events.sql
+@@ -0,0 +1,34 @@
++-- Tracking sederhana untuk section "Kamu Mungkin Juga Suka" di halaman produk,
++-- supaya bisa dicek: berapa kali tiap produk terkait dilihat, diklik, dan
++-- berapa yang berujung add-to-cart dari section itu (bukan dari halaman
++-- produknya sendiri).
++create table if not exists product_events (
++  id                 uuid primary key default gen_random_uuid(),
++  event_type         text not null check (event_type in ('related_view','related_click','related_add_to_cart')),
++  source_product_id  uuid references products(id) on delete cascade, -- produk yang sedang dilihat
++  target_product_id  uuid references products(id) on delete cascade, -- produk terkait yang ditampilkan/diklik
++  session_id         text,
++  created_at         timestamptz not null default now()
++);
++
++create index if not exists product_events_target_idx on product_events(target_product_id);
++create index if not exists product_events_created_idx on product_events(created_at);
++
++alter table product_events enable row level security;
++
++-- Anon key (dipakai di browser) cuma boleh INSERT, tidak boleh baca balik —
++-- laporan performanya dibaca lewat SQL Editor / service role di admin, bukan
++-- dari frontend publik.
++create policy "anon can insert product events"
++  on product_events for insert
++  to anon
++  with check (true);
++
++-- Query contoh untuk lihat performa tiap produk sebagai target related:
++-- select target_product_id,
++--   count(*) filter (where event_type = 'related_view') as views,
++--   count(*) filter (where event_type = 'related_click') as clicks,
++--   count(*) filter (where event_type = 'related_add_to_cart') as add_to_cart
++-- from product_events
++-- group by target_product_id
++-- order by add_to_cart desc;
+-- 
+2.43.0
+

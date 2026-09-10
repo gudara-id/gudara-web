@@ -3,12 +3,15 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProductBySlug, getRelatedProducts } from '@/lib/products';
+import { getApprovedReviews, reviewSummary } from '@/lib/reviews';
+import ProductReviews from '@/components/ProductReviews';
 import { formatRp, titleCase, toFeatureList, parseTextBlocks } from '@/lib/format';
 import AddToCartSection from '@/components/AddToCartSection';
 import ProductGalleryConnected from '@/components/ProductGalleryConnected';
 import { ProductVariantProvider } from '@/components/ProductVariantContext';
 import ProductAccordion from '@/components/ProductAccordion';
 import ProductGrid from '@/components/ProductGrid';
+import RelatedProductsSection from '@/components/RelatedProductsSection';
 import DesignRefGrid from '@/components/DesignRefGrid';
 import CollarOptionsGrid from '@/components/CollarOptionsGrid';
 import MaterialCatalogGrid from '@/components/MaterialCatalogGrid';
@@ -51,6 +54,8 @@ export default async function ProductPage({ params }) {
   if (!product) notFound();
  
   const related = await getRelatedProducts(product.kat, product.slug, 4);
+  const reviews = await getApprovedReviews(product.id);
+  const ratingSummary = reviewSummary(reviews);
   const featureList = toFeatureList(product.materialSpec);
   const careBlocks = parseTextBlocks(product.careInstructions);
  
@@ -145,6 +150,11 @@ export default async function ProductPage({ params }) {
                 {product.old && <span className="price-old" style={{ fontSize: 16 }}>{formatRp(product.old)}</span>}
                 {product.off && <span className="pdp-badge">{product.off}</span>}
               </div>
+              {ratingSummary.count > 0 && (
+                <a href="#review-produk" style={{ fontSize: 13, color: 'var(--ink-soft)', textDecoration: 'none' }}>
+                  ★ {ratingSummary.average} · {ratingSummary.count} ulasan
+                </a>
+              )}
             </div>
 
             <AddToCartSection
@@ -240,9 +250,15 @@ export default async function ProductPage({ params }) {
             </div>
             <Link className="see-all" href={`/etalase?kat=${product.kat}`}>Lihat Semua &rarr;</Link>
           </div>
-          <ProductGrid products={related} variant={product.kat === 'custom' ? 'custom' : 'shop'} />
+          <RelatedProductsSection
+            products={related}
+            variant={product.kat === 'custom' ? 'custom' : 'shop'}
+            sourceProductId={product.id}
+          />
         </section>
       )}
+
+      <ProductReviews productId={product.id} reviews={reviews} summary={ratingSummary} />
  
       <div className="pdp-sticky-cta">
         <div className="pdp-sticky-cta__info">

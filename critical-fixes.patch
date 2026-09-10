@@ -1,0 +1,320 @@
+diff --git a/app/api/checkout/route.js b/app/api/checkout/route.js
+index ad8f0f5..9258b5e 100644
+--- a/app/api/checkout/route.js
++++ b/app/api/checkout/route.js
+@@ -42,11 +42,45 @@ export async function POST(req) {
+       return Response.json({ error: `Produk tidak ditemukan: ${missing.name}` }, { status: 400 });
+     }
+ 
++    // 1b. Cek stok varian. variantId dikirim client dari AddToCartSection
++    // (hasil mencocokkan warna+ukuran yang dipilih ke satu baris
++    // product_variants) — di sini kita verifikasi ulang dari database
++    // supaya harga/stok tidak bisa dimanipulasi dari client, dan supaya
++    // order_items.variant_id benar-benar terisi (dulu selalu null).
++    // Catatan: ini baru CEK stok, belum MENGURANGI — pengurangan atomic
++    // terjadi di webhook saat pembayaran benar-benar terkonfirmasi, supaya
++    // keranjang yang ditinggal/gagal bayar tidak mengunci stok orang lain.
++    const variantIds = [...new Set(items.map((i) => i.variantId).filter(Boolean))];
++    let variantMap = {};
++    if (variantIds.length) {
++      const { data: variants, error: variantsError } = await supabase
++        .from('product_variants')
++        .select('id, product_id, color, size, stock')
++        .in('id', variantIds);
++      if (variantsError) throw variantsError;
++      variantMap = Object.fromEntries(variants.map((v) => [v.id, v]));
++    }
++
++    for (const i of items) {
++      if (!i.variantId) continue; // produk tanpa varian — belum ada stok yang dilacak untuk ini
++      const variant = variantMap[i.variantId];
++      const productName = priceMap[i.id]?.name || i.name;
++      if (!variant || variant.product_id !== i.id) {
++        return Response.json({ error: `Varian produk tidak valid: ${productName}` }, { status: 400 });
++      }
++      if (variant.stock < i.qty) {
++        return Response.json(
++          { error: `Stok ${productName}${i.variant ? ` (${i.variant})` : ''} tidak cukup. Sisa: ${variant.stock}` },
++          { status: 400 }
++        );
++      }
++    }
++
+     const orderItems = items.map((i) => {
+       const real = priceMap[i.id];
+       return {
+         product_id: i.id,
+-        variant_id: null,
++        variant_id: i.variantId || null,
+         product_name: real.name,
+         variant_label: i.variant || null,
+         unit_price: real.price,
+diff --git a/app/api/midtrans-webhook/route.js b/app/api/midtrans-webhook/route.js
+index 5e77445..63af3fb 100644
+--- a/app/api/midtrans-webhook/route.js
++++ b/app/api/midtrans-webhook/route.js
+@@ -1,6 +1,31 @@
+ // app/api/midtrans-webhook/route.js
++import crypto from 'crypto';
+ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { createShippingOrder } from '@/lib/biteship';
++import { sendOrderConfirmation } from '@/lib/whatsapp';
++import { formatRp } from '@/lib/format';
++
++// Signature Midtrans = SHA512(order_id + status_code + gross_amount + ServerKey).
++// Ini membuktikan notifikasi benar-benar datang dari Midtrans (bukan orang
++// yang kirim POST palsu ke endpoint ini untuk pura-pura order sudah dibayar).
++// Ref: https://docs.midtrans.com/docs/https-notification-webhooks
++function isValidSignature(notification) {
++  const { order_id, status_code, gross_amount, signature_key } = notification;
++  if (!order_id || !status_code || !gross_amount || !signature_key) return false;
++
++  const serverKey = process.env.MIDTRANS_SERVER_KEY;
++  const expected = crypto
++    .createHash('sha512')
++    .update(`${order_id}${status_code}${gross_amount}${serverKey}`)
++    .digest('hex');
++
++  // timingSafeEqual butuh panjang buffer yang sama, sekaligus mencegah
++  // timing attack dibanding pakai `===` biasa.
++  const expectedBuf = Buffer.from(expected, 'hex');
++  const receivedBuf = Buffer.from(String(signature_key), 'hex');
++  if (expectedBuf.length !== receivedBuf.length) return false;
++  return crypto.timingSafeEqual(expectedBuf, receivedBuf);
++}
+ 
+ // Beberapa alat (termasuk tombol "Tes URL notifikasi" di dashboard Midtrans)
+ // mengecek keterjangkauan URL dengan request GET/HEAD sebelum mengirim POST
+@@ -19,7 +44,12 @@ export async function POST(request) {
+     // Body kosong/bukan JSON (mis. dari test konektivitas) — jangan anggap error server.
+     return Response.json({ received: true });
+   }
+-  // TODO: verifikasi signature_key Midtrans di sini sebelum lanjut
++  if (!isValidSignature(notification)) {
++    console.error('Midtrans webhook: signature tidak valid, request ditolak.', {
++      order_id: notification?.order_id,
++    });
++    return Response.json({ error: 'Invalid signature' }, { status: 401 });
++  }
+ 
+   const orderNumber = notification?.order_id; // ini order_number/midtrans_order_id, bukan uuid id
+   const status = notification?.transaction_status;
+@@ -43,6 +73,29 @@ export async function POST(request) {
+     return Response.json({ received: true });
+   }
+ 
++  // Kurangi stok varian di sini (saat pembayaran BENAR-BENAR terkonfirmasi),
++  // bukan saat checkout — supaya keranjang yang ditinggal / belum dibayar
++  // tidak mengunci stok orang lain. decrement_variant_stock() adalah fungsi
++  // SQL atomic (update ... where stock >= qty), jadi aman dari race condition
++  // kalau ada 2 pembayaran nyaris bersamaan untuk stok terakhir.
++  // order.waybill_id di atas juga menjaga ini cuma jalan sekali per order.
++  const itemsWithVariant = (order.order_items || []).filter((it) => it.variant_id);
++  for (const it of itemsWithVariant) {
++    const { data: ok, error: rpcError } = await supabase.rpc('decrement_variant_stock', {
++      p_variant_id: it.variant_id,
++      p_qty: it.qty,
++    });
++    if (rpcError) {
++      console.error('Gagal mengurangi stok (RPC error):', it.variant_id, rpcError.message);
++    } else if (!ok) {
++      // Stok sudah tidak cukup (kemungkinan oversell / race condition langka).
++      // Order tetap diproses karena uang sudah diterima — perlu dicek manual.
++      console.error(
++        `Stok tidak cukup saat konfirmasi pembayaran (order ${orderNumber}): variant_id=${it.variant_id}, qty=${it.qty}. Cek manual.`
++      );
++    }
++  }
++
+   try {
+     const shippingOrder = await createShippingOrder({
+       destination: {
+@@ -86,5 +139,20 @@ export async function POST(request) {
+     console.error("Gagal buat resi:", shippingErr.message);
+   }
+ 
++  // Kirim WA konfirmasi ke pembeli. Dibungkus try/catch sendiri dan tidak
++  // mempengaruhi response webhook — kalau WhatsApp API gagal/kredensial
++  // belum diisi, order tetap sudah "paid" dan resi tetap sudah dibuat di atas;
++  // ini murni notifikasi tambahan, bukan langkah yang boleh menggagalkan alur.
++  try {
++    await sendOrderConfirmation({
++      phone: order.recipient_phone,
++      customerName: order.recipient_name,
++      orderNumber: order.order_number,
++      totalFormatted: formatRp(order.total),
++    });
++  } catch (waErr) {
++    console.error('Gagal kirim WA konfirmasi pesanan:', waErr.message);
++  }
++
+   return Response.json({ received: true });
+ }
+diff --git a/components/AddToCartSection.jsx b/components/AddToCartSection.jsx
+index 335cd19..a81d325 100644
+--- a/components/AddToCartSection.jsx
++++ b/components/AddToCartSection.jsx
+@@ -5,7 +5,7 @@ import { useCart } from '@/lib/cart-context';
+ import { useProductVariant } from './ProductVariantContext';
+ 
+ export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
+-  const { addToCart } = useCart();
++  const { cart, addToCart } = useCart();
+   // selectedColor datang dari ProductVariantProvider (dibungkus di
+   // app/produk/[slug]/page.js) supaya klik warna di sini juga mengganti
+   // foto galeri di ProductGalleryConnected — bukan cuma dipakai di sini.
+@@ -17,6 +17,21 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+   // "Tambah ke Keranjang" look completely dead with zero feedback.
+   const [notice, setNotice] = useState('');
+ 
++  // product.variants ([]  kalau produk belum punya varian sama sekali, mis.
++  // produk lama) dipakai untuk mencocokkan warna+ukuran yang dipilih ke satu
++  // baris product_variants — supaya kita tahu variant_id-nya (dikirim ke
++  // checkout, bukan cuma teks label) dan sisa stoknya.
++  function matchVariant(color, size) {
++    if (!product.variants?.length) return null;
++    return (
++      product.variants.find(
++        (v) => (v.size || null) === (size || null) && (v.color || null) === (color || null)
++      ) || null
++    );
++  }
++
++  const matchedVariant = matchVariant(selectedColor, selectedSize);
++
+   function handleAdd() {
+     if (product.colors.length > 0 && !selectedColor) {
+       setNotice('Pilih warna dulu ya.');
+@@ -26,6 +41,23 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+       setNotice('Pilih ukuran dulu ya.');
+       return;
+     }
++    if (product.variants?.length && !matchedVariant) {
++      setNotice('Kombinasi warna & ukuran ini tidak tersedia.');
++      return;
++    }
++    if (matchedVariant) {
++      const alreadyInCart = cart
++        .filter((i) => i.id === product.id && i.variantId === matchedVariant.id)
++        .reduce((sum, i) => sum + i.qty, 0);
++      if (matchedVariant.stock <= 0) {
++        setNotice('Stok untuk pilihan ini sedang habis.');
++        return;
++      }
++      if (alreadyInCart >= matchedVariant.stock) {
++        setNotice(`Stok tersisa cuma ${matchedVariant.stock}, sudah ada di keranjang.`);
++        return;
++      }
++    }
+     setNotice('');
+     addToCart({
+       id: product.id,
+@@ -33,6 +65,7 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+       price: product.price,
+       image: product.image,
+       variant: [selectedColor, selectedSize].filter(Boolean).join(' / '),
++      variantId: matchedVariant?.id || null,
+     });
+   }
+ 
+@@ -75,19 +108,27 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
+             )}
+           </div>
+           <div className="pdp-sizes">
+-            {product.sizes.map((s) => (
+-              <button
+-                key={s}
+-                className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
+-                onClick={() => {
+-                  setSelectedSize(s);
+-                  setNotice('');
+-                }}
+-                type="button"
+-              >
+-                {s}
+-              </button>
+-            ))}
++            {product.sizes.map((s) => {
++              // Kalau produk punya data varian, cek stok kombinasi warna
++              // (yang lagi dipilih) + ukuran ini supaya ukuran yang habis
++              // kelihatan beda (dicoret) sebelum pembeli sempat pilih.
++              const v = matchVariant(selectedColor, s);
++              const sizeOutOfStock = product.variants?.length && v && v.stock <= 0;
++              return (
++                <button
++                  key={s}
++                  className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
++                  style={sizeOutOfStock ? { opacity: 0.4, textDecoration: 'line-through' } : undefined}
++                  onClick={() => {
++                    setSelectedSize(s);
++                    setNotice('');
++                  }}
++                  type="button"
++                >
++                  {s}
++                </button>
++              );
++            })}
+           </div>
+         </div>
+       )}
+diff --git a/lib/products.js b/lib/products.js
+index 15b9f31..d881c54 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -183,8 +183,9 @@ export async function getProductBySlug(slug) {
+   const designReferenceImages = allImages.filter((img) => isDesignReferenceFile(img.url));
+   const collarOptionImages = allImages.filter((img) => isCollarOptionFile(img.url));
+ 
+-  const sizes = [...new Set((data.product_variants || []).map((v) => v.size).filter(Boolean))];
+-  const colors = [...new Set((data.product_variants || []).map((v) => v.color).filter(Boolean))];
++  const variants = data.product_variants || [];
++  const sizes = [...new Set(variants.map((v) => v.size).filter(Boolean))];
++  const colors = [...new Set(variants.map((v) => v.color).filter(Boolean))];
+   const imageUrls = galleryImages.length ? galleryImages.map((i) => i.url) : [PLACEHOLDER_IMAGE];
+ 
+   // Foto yang tidak ditandai variant_color (mis. produk lama yang belum
+@@ -242,5 +243,10 @@ export async function getProductBySlug(slug) {
+     // variants seeded yet (seed.sql only seeds variants for basic-tee-man).
+     sizes: sizes.length ? sizes : ['S', 'M', 'L', 'XL'],
+     colors,
++    // Daftar varian mentah (id, color, size, stock) — dipakai frontend untuk
++    // mencocokkan pilihan warna+ukuran ke satu variant_id yang tepat, dan
++    // untuk tahu berapa stok yang tersisa per kombinasi sebelum checkout.
++    // Kosong ([]) untuk produk lama yang belum punya varian sama sekali.
++    variants: variants.map((v) => ({ id: v.id, color: v.color, size: v.size, stock: v.stock })),
+   };
+ }
+diff --git a/supabase/decrement-variant-stock.sql b/supabase/decrement-variant-stock.sql
+new file mode 100644
+index 0000000..bcb3cd5
+--- /dev/null
++++ b/supabase/decrement-variant-stock.sql
+@@ -0,0 +1,27 @@
++-- =====================================================
++-- GUDARA — Fungsi atomic untuk mengurangi stok varian
++-- Jalankan ini di: Supabase Dashboard → SQL Editor → New Query
++--
++-- Kenapa lewat fungsi SQL, bukan "SELECT stock lalu UPDATE stock - qty"
++-- di JavaScript? Karena SELECT-lalu-UPDATE dari luar database ada celah
++-- waktu: kalau 2 request datang nyaris bersamaan (mis. race condition di
++-- webhook Midtrans), keduanya bisa sama-sama baca stok = 1, sama-sama
++-- lolos, dan stok jadi -1 (oversell). Fungsi ini menyatukan cek + kurangi
++-- jadi satu operasi atomic di database, jadi tidak mungkin ada celah itu.
++-- =====================================================
++
++create or replace function decrement_variant_stock(p_variant_id uuid, p_qty integer)
++returns boolean
++language plpgsql
++as $$
++declare
++  affected integer;
++begin
++  update product_variants
++  set stock = stock - p_qty
++  where id = p_variant_id and stock >= p_qty;
++
++  get diagnostics affected = row_count;
++  return affected > 0; -- true kalau stok cukup & berhasil dikurangi, false kalau stok kurang
++end;
++$$;

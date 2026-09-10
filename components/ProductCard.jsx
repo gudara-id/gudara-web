@@ -4,14 +4,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/lib/cart-context';
 import { formatRp } from '@/lib/format';
+import { logProductEvent } from '@/lib/productEvents';
 
-export default function ProductCard({ product, variant = 'shop' }) {
+export default function ProductCard({ product, variant = 'shop', trackSourceProductId }) {
   const { addToCart } = useCart();
   const isCustom = variant === 'custom';
 
+  // trackSourceProductId cuma diisi kalau card ini dirender di dalam section
+  // "Kamu Mungkin Juga Suka" (lihat RelatedProductsSection) — di grid etalase
+  // biasa nilainya undefined, jadi tidak ada tracking tambahan di sana.
+  function handleRelatedClick() {
+    if (trackSourceProductId) logProductEvent('related_click', trackSourceProductId, product.id);
+  }
+
   return (
     <div className="p-card">
-      <Link href={`/produk/${product.slug}`}>
+      <Link href={`/produk/${product.slug}`} onClick={handleRelatedClick}>
         <div className="p-card__img">
           {product.off && <span className="p-card__badge">{product.off}</span>}
           {isCustom && <span className="p-card__moq-ribbon">Min. Order 12 pcs</span>}
@@ -37,7 +45,7 @@ export default function ProductCard({ product, variant = 'shop' }) {
       </Link>
       <div className="p-card__body">
         <div className="eyebrow">GUDARA</div>
-        <Link href={`/produk/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Link href={`/produk/${product.slug}`} onClick={handleRelatedClick} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="p-card__name">{product.name}</div>
         </Link>
         <div className="p-card__prices">
@@ -60,15 +68,16 @@ export default function ProductCard({ product, variant = 'shop' }) {
         ) : (
           <button
             className="p-card__add"
-            onClick={() =>
+            onClick={() => {
+              if (trackSourceProductId) logProductEvent('related_add_to_cart', trackSourceProductId, product.id);
               addToCart({
                 id: product.id,
                 name: product.name,
                 price: product.price,
                 image: product.image,
                 variant: '',
-              })
-            }
+              });
+            }}
           >
             + Keranjang
           </button>
