@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import ProductForm from '@/components/ProductForm';
+import ProductWizard from '@/components/ProductWizard';
 
 export default function AdminNewProductPage() {
   return (
@@ -9,11 +9,11 @@ export default function AdminNewProductPage() {
       <div className="admin-head">
         <div>
           <h1>Tambah Produk</h1>
-          <p className="admin-head__meta">Foto dan varian bisa ditambahkan setelah produk dibuat.</p>
+          <p className="admin-head__meta">Isi info, foto, lalu varian &amp; stok — semuanya di halaman ini, mirip alur upload di marketplace.</p>
         </div>
       </div>
 
-      <ProductForm mode="create" />
+      <ProductWizard />
     </section>
   );
 }

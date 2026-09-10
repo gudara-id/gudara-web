@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { compressImage, formatBytes } from '@/lib/imageCompress';
 
 const TYPE_OPTIONS = [
   { value: 'gallery', label: 'Foto Galeri (utama)' },
@@ -33,16 +34,20 @@ const GROUP_LABELS = {
   collar: 'Pilihan Kerah',
 };
 
+// queue item status: 'pending' | 'compressing' | 'uploading' | 'done' | 'error'
+
 export default function ProductImages({ productId, images, colors = [] }) {
   const router = useRouter();
   const [type, setType] = useState('gallery');
   const [collarLabel, setCollarLabel] = useState('');
   const [variantColor, setVariantColor] = useState('');
-  const [file, setFile] = useState(null);
+  const [queue, setQueue] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState(null);
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
 
   const groups = { gallery: [], size_chart: [], reference: [], collar: [] };
   for (const img of images) groups[classify(img.url)].push(img);
@@ -57,42 +62,97 @@ export default function ProductImages({ productId, images, colors = [] }) {
     galleryByColor.get(key).push(img);
   }
 
-  async function handleUpload(e) {
+  function addFiles(fileList) {
+    const files = Array.from(fileList || []).filter((f) => f.type?.startsWith('image/'));
+    if (!files.length) return;
+    const items = files.map((f) => ({
+      id: `${f.name}-${f.size}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      file: f,
+      status: 'pending',
+      originalSize: f.size,
+      compressedSize: null,
+      error: null,
+    }));
+    setQueue((q) => [...q, ...items]);
+  }
+
+  function handleDrop(e) {
     e.preventDefault();
-    if (!file) {
+    setDragOver(false);
+    addFiles(e.dataTransfer?.files);
+  }
+
+  function removeFromQueue(id) {
+    setQueue((q) => q.filter((it) => it.id !== id));
+  }
+
+  async function handleUploadAll(e) {
+    e.preventDefault();
+    if (queue.length === 0) {
       setMsgOk(false);
-      setMsg('Pilih file dulu.');
+      setMsg('Pilih atau seret foto dulu.');
       return;
     }
     setUploading(true);
     setMsg('');
-    try {
-      const form = new FormData();
-      form.set('file', file);
-      form.set('image_type', type);
-      if (type === 'collar') form.set('collar_label', collarLabel);
-      if (type === 'gallery' && variantColor) form.set('variant_color', variantColor);
 
-      const res = await fetch(`/api/admin/products/${productId}/images`, { method: 'POST', body: form });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMsgOk(false);
-        setMsg(data.error || 'Gagal upload foto.');
-        return;
+    let successCount = 0;
+    let failCount = 0;
+
+    // Upload berurutan (bukan paralel) supaya urutan foto & sort_order di
+    // server tetap sesuai urutan pilihan admin, dan supaya tidak membanjiri
+    // koneksi HP admin dengan banyak upload sekaligus.
+    for (const item of queue) {
+      setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, status: 'compressing' } : it)));
+      let toUpload = item.file;
+      let compressedSize = item.originalSize;
+      try {
+        const result = await compressImage(item.file);
+        toUpload = result.file;
+        compressedSize = result.compressedSize;
+      } catch {
+        // Kompresi gagal — lanjut upload file aslinya saja.
       }
-      setFile(null);
-      setCollarLabel('');
-      setVariantColor('');
-      if (e.target.reset) e.target.reset();
-      setMsgOk(true);
-      setMsg('Foto berhasil diupload.');
-      router.refresh();
-    } catch {
-      setMsgOk(false);
-      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
-    } finally {
-      setUploading(false);
+
+      setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, status: 'uploading', compressedSize } : it)));
+
+      try {
+        const form = new FormData();
+        form.set('file', toUpload);
+        form.set('image_type', type);
+        if (type === 'collar') form.set('collar_label', collarLabel);
+        if (type === 'gallery' && variantColor) form.set('variant_color', variantColor);
+
+        const res = await fetch(`/api/admin/products/${productId}/images`, { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, status: 'error', error: data.error || 'Gagal upload.' } : it)));
+          failCount += 1;
+          continue;
+        }
+        setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, status: 'done' } : it)));
+        successCount += 1;
+      } catch {
+        setQueue((q) => q.map((it) => (it.id === item.id ? { ...it, status: 'error', error: 'Gagal menghubungi server.' } : it)));
+        failCount += 1;
+      }
     }
+
+    setUploading(false);
+    setCollarLabel('');
+    setVariantColor('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (failCount === 0) {
+      setMsgOk(true);
+      setMsg(successCount > 1 ? `${successCount} foto berhasil diupload.` : 'Foto berhasil diupload.');
+      setQueue([]);
+    } else {
+      setMsgOk(false);
+      setMsg(`${successCount} berhasil, ${failCount} gagal. Foto yang gagal masih ada di daftar — coba upload ulang.`);
+      setQueue((q) => q.filter((it) => it.status === 'error'));
+    }
+    router.refresh();
   }
 
   async function handleRemove(imageId) {
@@ -115,29 +175,36 @@ export default function ProductImages({ productId, images, colors = [] }) {
     }
   }
 
+  const STATUS_LABEL = {
+    pending: 'Menunggu',
+    compressing: 'Mengecilkan ukuran...',
+    uploading: 'Mengupload...',
+    done: 'Selesai',
+    error: 'Gagal',
+  };
+
   return (
     <div className="admin-card">
       <div className="admin-section-label" style={{ marginTop: 0 }}>Foto Produk</div>
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 16 }}>
+        Bisa pilih atau seret beberapa foto sekaligus — setiap foto otomatis dikecilkan ukurannya supaya website tetap cepat dibuka pembeli.
+      </p>
 
-      <form onSubmit={handleUpload} className="admin-upload-row">
-        <div className="field">
-          <label>File</label>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-        </div>
-        <div className="field">
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
           <label>Jenis Foto</label>
           <select value={type} onChange={(e) => setType(e.target.value)}>
             {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
         {type === 'collar' && (
-          <div className="field">
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Label Kerah (mis. "A", "Tinggi")</label>
             <input value={collarLabel} onChange={(e) => setCollarLabel(e.target.value)} placeholder="A" />
           </div>
         )}
         {type === 'gallery' && colors.length > 0 && (
-          <div className="field">
+          <div className="field" style={{ marginBottom: 0 }}>
             <label>Untuk Varian Warna (opsional)</label>
             <select value={variantColor} onChange={(e) => setVariantColor(e.target.value)}>
               <option value="">Semua warna / umum</option>
@@ -145,11 +212,55 @@ export default function ProductImages({ productId, images, colors = [] }) {
             </select>
           </div>
         )}
-        <button className="btn btn--dark" disabled={uploading} style={{ height: 46 }}>
-          {uploading ? 'Mengupload...' : 'Upload Foto'}
-        </button>
-      </form>
-      {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginBottom: 16 }}>{msg}</p>}
+      </div>
+
+      <div
+        className={`admin-dropzone${dragOver ? ' is-dragover' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={(e) => addFiles(e.target.files)}
+        />
+        <p className="admin-dropzone__title">Klik untuk pilih foto, atau seret &amp; lepas di sini</p>
+        <p className="admin-dropzone__hint">Bisa banyak foto sekaligus &middot; JPG/PNG &middot; otomatis dikecilkan sebelum diupload</p>
+      </div>
+
+      {queue.length > 0 && (
+        <div className="admin-upload-queue">
+          {queue.map((it) => (
+            <div key={it.id} className="admin-upload-queue__row">
+              <span className="admin-upload-queue__name">{it.file.name}</span>
+              <span className="admin-upload-queue__size">
+                {formatBytes(it.originalSize)}
+                {it.compressedSize != null && it.compressedSize !== it.originalSize && (
+                  <> &rarr; {formatBytes(it.compressedSize)}</>
+                )}
+              </span>
+              <span className={`admin-upload-queue__status is-${it.status}`}>
+                {it.status === 'error' ? (it.error || 'Gagal') : STATUS_LABEL[it.status]}
+              </span>
+              {(it.status === 'pending' || it.status === 'error') && (
+                <button type="button" className="admin-upload-queue__remove" onClick={() => removeFromQueue(it.id)} aria-label="Batalkan">
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <button className="btn btn--dark" disabled={uploading} style={{ marginTop: 12 }} onClick={handleUploadAll}>
+            {uploading ? 'Mengupload...' : `Upload ${queue.length} Foto`}
+          </button>
+        </div>
+      )}
+
+      {msg && <p className="admin-msg" style={{ color: msgOk ? '#16A34A' : '#C6302B', marginTop: queue.length ? 12 : 0, marginBottom: 16 }}>{msg}</p>}
 
       {Object.keys(GROUP_LABELS).map((key) => {
         // Foto galeri produk yang punya varian warna ditampilkan per

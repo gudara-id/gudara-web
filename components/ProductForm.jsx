@@ -18,7 +18,7 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function ProductForm({ mode, product }) {
+export default function ProductForm({ mode, product, onCreated, submitLabel }) {
   const router = useRouter();
   const isEdit = mode === 'edit';
 
@@ -77,6 +77,11 @@ export default function ProductForm({ mode, product }) {
         setMsgOk(true);
         setMsg('Perubahan tersimpan.');
         router.refresh();
+      } else if (onCreated) {
+        // Dipakai oleh alur "Tambah Produk" satu halaman (ProductWizard) —
+        // lanjut ke langkah foto/varian di halaman yang sama, tanpa pindah
+        // halaman dulu seperti sebelumnya.
+        onCreated({ id: data.id, slug: data.slug, name, category });
       } else {
         router.push(`/admin/produk/${data.id}`);
       }
@@ -150,8 +155,13 @@ export default function ProductForm({ mode, product }) {
           <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Harga Coret (opsional)</label>
-          <input type="number" min="0" value={comparePrice} onChange={(e) => setComparePrice(e.target.value)} />
+          <label>Harga Coret / Promo (opsional)</label>
+          <input type="number" min="0" value={comparePrice} onChange={(e) => setComparePrice(e.target.value)} placeholder="Isi kalau produk ini lagi promo" />
+          {comparePrice !== '' && Number(comparePrice) > Number(price) && Number(price) > 0 && (
+            <p style={{ fontSize: 12, color: '#16A34A', marginTop: 4 }}>
+              Tampil diskon {Math.round((1 - Number(price) / Number(comparePrice)) * 100)}% di toko (harga coret {Number(comparePrice).toLocaleString('id-ID')} → {Number(price).toLocaleString('id-ID')}).
+            </p>
+          )}
         </div>
         <div className="field field--full">
           <label>Deskripsi</label>
@@ -170,7 +180,7 @@ export default function ProductForm({ mode, product }) {
       <div className="admin-actions" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--dark" disabled={loading}>
-            {loading ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Produk'}
+            {loading ? 'Menyimpan...' : submitLabel || (isEdit ? 'Simpan Perubahan' : 'Buat Produk')}
           </button>
         </div>
         {isEdit && (
