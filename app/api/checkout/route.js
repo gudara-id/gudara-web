@@ -42,11 +42,45 @@ export async function POST(req) {
       return Response.json({ error: `Produk tidak ditemukan: ${missing.name}` }, { status: 400 });
     }
 
+    // 1b. Cek stok varian. variantId dikirim client dari AddToCartSection
+    // (hasil mencocokkan warna+ukuran yang dipilih ke satu baris
+    // product_variants) — di sini kita verifikasi ulang dari database
+    // supaya harga/stok tidak bisa dimanipulasi dari client, dan supaya
+    // order_items.variant_id benar-benar terisi (dulu selalu null).
+    // Catatan: ini baru CEK stok, belum MENGURANGI — pengurangan atomic
+    // terjadi di webhook saat pembayaran benar-benar terkonfirmasi, supaya
+    // keranjang yang ditinggal/gagal bayar tidak mengunci stok orang lain.
+    const variantIds = [...new Set(items.map((i) => i.variantId).filter(Boolean))];
+    let variantMap = {};
+    if (variantIds.length) {
+      const { data: variants, error: variantsError } = await supabase
+        .from('product_variants')
+        .select('id, product_id, color, size, stock')
+        .in('id', variantIds);
+      if (variantsError) throw variantsError;
+      variantMap = Object.fromEntries(variants.map((v) => [v.id, v]));
+    }
+
+    for (const i of items) {
+      if (!i.variantId) continue; // produk tanpa varian — belum ada stok yang dilacak untuk ini
+      const variant = variantMap[i.variantId];
+      const productName = priceMap[i.id]?.name || i.name;
+      if (!variant || variant.product_id !== i.id) {
+        return Response.json({ error: `Varian produk tidak valid: ${productName}` }, { status: 400 });
+      }
+      if (variant.stock < i.qty) {
+        return Response.json(
+          { error: `Stok ${productName}${i.variant ? ` (${i.variant})` : ''} tidak cukup. Sisa: ${variant.stock}` },
+          { status: 400 }
+        );
+      }
+    }
+
     const orderItems = items.map((i) => {
       const real = priceMap[i.id];
       return {
         product_id: i.id,
-        variant_id: null,
+        variant_id: i.variantId || null,
         product_name: real.name,
         variant_label: i.variant || null,
         unit_price: real.price,

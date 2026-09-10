@@ -5,7 +5,7 @@ import { useCart } from '@/lib/cart-context';
 import { useProductVariant } from './ProductVariantContext';
 
 export default function AddToCartSection({ product, hideAddToCart = false, sizeChartUrl = null }) {
-  const { addToCart } = useCart();
+  const { cart, addToCart } = useCart();
   // selectedColor datang dari ProductVariantProvider (dibungkus di
   // app/produk/[slug]/page.js) supaya klik warna di sini juga mengganti
   // foto galeri di ProductGalleryConnected — bukan cuma dipakai di sini.
@@ -17,6 +17,21 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
   // "Tambah ke Keranjang" look completely dead with zero feedback.
   const [notice, setNotice] = useState('');
 
+  // product.variants ([]  kalau produk belum punya varian sama sekali, mis.
+  // produk lama) dipakai untuk mencocokkan warna+ukuran yang dipilih ke satu
+  // baris product_variants — supaya kita tahu variant_id-nya (dikirim ke
+  // checkout, bukan cuma teks label) dan sisa stoknya.
+  function matchVariant(color, size) {
+    if (!product.variants?.length) return null;
+    return (
+      product.variants.find(
+        (v) => (v.size || null) === (size || null) && (v.color || null) === (color || null)
+      ) || null
+    );
+  }
+
+  const matchedVariant = matchVariant(selectedColor, selectedSize);
+
   function handleAdd() {
     if (product.colors.length > 0 && !selectedColor) {
       setNotice('Pilih warna dulu ya.');
@@ -26,6 +41,23 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
       setNotice('Pilih ukuran dulu ya.');
       return;
     }
+    if (product.variants?.length && !matchedVariant) {
+      setNotice('Kombinasi warna & ukuran ini tidak tersedia.');
+      return;
+    }
+    if (matchedVariant) {
+      const alreadyInCart = cart
+        .filter((i) => i.id === product.id && i.variantId === matchedVariant.id)
+        .reduce((sum, i) => sum + i.qty, 0);
+      if (matchedVariant.stock <= 0) {
+        setNotice('Stok untuk pilihan ini sedang habis.');
+        return;
+      }
+      if (alreadyInCart >= matchedVariant.stock) {
+        setNotice(`Stok tersisa cuma ${matchedVariant.stock}, sudah ada di keranjang.`);
+        return;
+      }
+    }
     setNotice('');
     addToCart({
       id: product.id,
@@ -33,6 +65,7 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
       price: product.price,
       image: product.image,
       variant: [selectedColor, selectedSize].filter(Boolean).join(' / '),
+      variantId: matchedVariant?.id || null,
     });
   }
 
@@ -75,19 +108,27 @@ export default function AddToCartSection({ product, hideAddToCart = false, sizeC
             )}
           </div>
           <div className="pdp-sizes">
-            {product.sizes.map((s) => (
-              <button
-                key={s}
-                className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
-                onClick={() => {
-                  setSelectedSize(s);
-                  setNotice('');
-                }}
-                type="button"
-              >
-                {s}
-              </button>
-            ))}
+            {product.sizes.map((s) => {
+              // Kalau produk punya data varian, cek stok kombinasi warna
+              // (yang lagi dipilih) + ukuran ini supaya ukuran yang habis
+              // kelihatan beda (dicoret) sebelum pembeli sempat pilih.
+              const v = matchVariant(selectedColor, s);
+              const sizeOutOfStock = product.variants?.length && v && v.stock <= 0;
+              return (
+                <button
+                  key={s}
+                  className={`pdp-size-opt${selectedSize === s ? ' is-active' : ''}`}
+                  style={sizeOutOfStock ? { opacity: 0.4, textDecoration: 'line-through' } : undefined}
+                  onClick={() => {
+                    setSelectedSize(s);
+                    setNotice('');
+                  }}
+                  type="button"
+                >
+                  {s}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
