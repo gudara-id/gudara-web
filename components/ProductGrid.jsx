@@ -5,6 +5,7 @@ export default function ProductGrid({
   emptyLabel = 'Belum ada produk di kategori ini.',
   className = '',
   variant = 'shop',
+  trackSourceProductId,
 }) {
   if (!products || products.length === 0) {
     return <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>{emptyLabel}</p>;
@@ -12,7 +13,7 @@ export default function ProductGrid({
   return (
     <div className={`p-grid ${className}`.trim()}>
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} variant={variant} />
+        <ProductCard key={p.id} product={p} variant={variant} trackSourceProductId={trackSourceProductId} />
       ))}
     </div>
   );
