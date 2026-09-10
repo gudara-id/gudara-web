@@ -8,7 +8,27 @@ import { formatDate } from '@/lib/format';
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const post = await getJournalPostBySlug(slug);
-  return { title: post ? `${post.title} | GUDARA` : 'Jurnal | GUDARA' };
+  if (!post) return { title: 'Jurnal | GUDARA' };
+
+  const title = `${post.title} | GUDARA`;
+  const description = post.excerpt || post.title;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      images: [{ url: post.cover }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [post.cover],
+    },
+  };
 }
 
 export default async function JurnalDetailPage({ params }) {

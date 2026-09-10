@@ -17,7 +17,31 @@ import { MATERIALS } from '@/lib/materials';
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  return { title: product ? `${product.name} | GUDARA` : 'Produk | GUDARA' };
+  if (!product) return { title: 'Produk | GUDARA' };
+
+  const title = `${product.name} | GUDARA`;
+  const description =
+    product.description || product.materialSpec || `${product.name} — GUDARA, sportswear Indonesia.`;
+
+  return {
+    title,
+    description,
+    // Open Graph & Twitter card pakai foto produk asli, supaya kalau link
+    // produk dibagikan ke WA/IG/Twitter, preview-nya menampilkan foto —
+    // sebelumnya tidak ada metadata ini sama sekali jadi preview kosong.
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      images: [{ url: product.image }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [product.image],
+    },
+  };
 }
  
 export default async function ProductPage({ params }) {

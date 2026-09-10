@@ -3,11 +3,33 @@ import { CartProvider } from '@/lib/cart-context';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CartDrawer from '@/components/CartDrawer';
+import { SITE_URL } from '@/lib/site';
+
+const SITE_TITLE = 'GUDARA | Jersey Olahraga & Custom Kits Terbaik Indonesia';
+const SITE_DESCRIPTION =
+  'Brand sportswear Indonesia. Jersey olahraga, custom kits, dan pakaian sport berkualitas premium.';
 
 export const metadata = {
-  title: 'GUDARA | Jersey Olahraga & Custom Kits Terbaik Indonesia',
-  description:
-    'Brand sportswear Indonesia. Jersey olahraga, custom kits, dan pakaian sport berkualitas premium.',
+  // metadataBase bikin semua URL relatif (termasuk openGraph.images di
+  // generateMetadata masing-masing halaman) otomatis jadi URL absolut ke
+  // domain situs — tanpa ini, preview link WA/IG/Twitter bisa gagal
+  // menampilkan foto karena URL-nya tidak lengkap.
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: 'GUDARA',
+    locale: 'id_ID',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 // Without this, some mobile browsers lay the page out at a desktop-width
