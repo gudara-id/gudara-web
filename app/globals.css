@@ -1078,3 +1078,65 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 @media (max-width:640px){
   .admin-card{padding:20px;}
 }
+
+/* -- Admin: photo upload dropzone & queue (ProductImages) -- */
+.admin-dropzone{
+  border:2px dashed var(--line);padding:28px 16px;text-align:center;cursor:pointer;
+  margin-bottom:16px;transition:border-color .15s,background .15s;
+}
+.admin-dropzone:hover{border-color:var(--ink);}
+.admin-dropzone.is-dragover{border-color:var(--ink);background:var(--surface);}
+.admin-dropzone__title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.admin-dropzone__hint{font-size:12px;color:var(--ink-soft);}
+
+.admin-upload-queue{border:1px solid var(--line);padding:14px;margin-bottom:16px;background:var(--surface);}
+.admin-upload-queue__row{
+  display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;
+}
+.admin-upload-queue__row:last-child{border-bottom:none;}
+.admin-upload-queue__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.admin-upload-queue__size{color:var(--ink-soft);white-space:nowrap;}
+.admin-upload-queue__status{white-space:nowrap;font-weight:600;}
+.admin-upload-queue__status.is-error{color:#C6302B;}
+.admin-upload-queue__status.is-done{color:#16A34A;}
+.admin-upload-queue__status.is-compressing,.admin-upload-queue__status.is-uploading{color:var(--ink-soft);}
+.admin-upload-queue__remove{
+  width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.72);color:#fff;
+  border:none;font-size:12px;line-height:1;cursor:pointer;
+}
+.admin-upload-queue__remove:hover{background:#C6302B;}
+
+/* -- Admin: add-product wizard (ProductWizard) -- */
+.admin-wizard-steps{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap;}
+.admin-wizard-step{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--line);
+  background:transparent;font-family:var(--mono);font-size:12px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-soft);cursor:not-allowed;
+}
+.admin-wizard-step.is-enabled{cursor:pointer;}
+.admin-wizard-step.is-active{border-color:var(--ink);color:var(--ink);background:var(--surface);}
+.admin-wizard-step__num{
+  width:18px;height:18px;border-radius:50%;background:var(--ink-soft);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;
+}
+.admin-wizard-step.is-active .admin-wizard-step__num{background:var(--ink);}
+.admin-wizard-hint{font-size:13px;color:var(--ink-soft);margin-bottom:16px;}
+.admin-wizard-nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+
+/* -- Admin: stock overview (StockTable) -- */
+.admin-stock-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;}
+.admin-stock-summary__item{
+  flex:1 1 160px;border:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:4px;
+}
+.admin-stock-summary__item.is-warn{border-color:#D97706;}
+.admin-stock-summary__item.is-danger{border-color:#C6302B;}
+.admin-stock-summary__num{font-size:26px;font-weight:700;font-family:var(--mono);}
+.admin-stock-summary__item.is-warn .admin-stock-summary__num{color:#D97706;}
+.admin-stock-summary__item.is-danger .admin-stock-summary__num{color:#C6302B;}
+
+/* -- Admin: promo badge (PromoManager) -- */
+.admin-promo-badge{
+  display:inline-block;background:#C6302B;color:#fff;font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:2px;letter-spacing:.02em;
+}

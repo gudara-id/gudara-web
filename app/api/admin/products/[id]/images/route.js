@@ -1,7 +1,12 @@
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
 const BUCKET = 'product-images';
-const MAX_SIZE = 8 * 1024 * 1024; // 8MB
+// Foto sekarang dikompres di browser sebelum sampai sini (lihat
+// lib/imageCompress.js), jadi batas ini cuma jaring pengaman — hasil
+// kompresi normal ada di kisaran ratusan KB, bukan puluhan MB. Tetap
+// dibiarkan agak longgar untuk menampung foto yang gagal dikompres
+// (mis. GIF, atau browser lama tanpa dukungan canvas).
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 function extOf(filename) {
   const m = /\.([a-z0-9]+)$/i.exec(filename || '');
@@ -66,7 +71,7 @@ export async function POST(req, { params }) {
     return Response.json({ error: 'Jenis foto tidak valid.' }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
-    return Response.json({ error: 'Ukuran file maksimal 8MB.' }, { status: 400 });
+    return Response.json({ error: 'Ukuran file maksimal 5MB. Coba screenshot/kompres dulu, atau gunakan foto lain.' }, { status: 400 });
   }
   if (!file.type?.startsWith('image/')) {
     return Response.json({ error: 'File harus berupa gambar.' }, { status: 400 });
