@@ -407,8 +407,8 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 .field input,.field select,.field textarea{
   width:100%;padding:12px 14px;border:1px solid var(--line);background:var(--white);
   font-family:var(--body);font-size:14px;
-.field input[type="checkbox"]{width:auto;flex:none;}
 }
+.field input[type="checkbox"]{width:auto;flex:none;}
 .pay-option{
   border:1px solid var(--line);padding:14px 16px;margin-bottom:10px;
   display:flex;align-items:center;gap:12px;cursor:pointer;
