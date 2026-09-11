@@ -3,13 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const CATEGORIES = [
-  { value: 'daily', label: 'Daily & Casual' },
-  { value: 'sport', label: 'Sport Authentic' },
-  { value: 'basic', label: 'Basic' },
-  { value: 'custom', label: 'Custom Kits' },
-];
-
 function slugify(str) {
   return String(str || '')
     .toLowerCase()
@@ -18,14 +11,15 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function ProductForm({ mode, product, onCreated, submitLabel }) {
+export default function ProductForm({ mode, product, categories, onCreated, submitLabel }) {
   const router = useRouter();
   const isEdit = mode === 'edit';
+  const categoryOptions = categories?.length ? categories : [{ slug: product?.category, name: product?.category }];
 
   const [name, setName] = useState(product?.name || '');
   const [slug, setSlug] = useState(product?.slug || '');
   const [slugTouched, setSlugTouched] = useState(isEdit);
-  const [category, setCategory] = useState(product?.category || 'daily');
+  const [category, setCategory] = useState(product?.category || categoryOptions[0]?.slug || '');
   const [price, setPrice] = useState(product?.price ?? '');
   const [comparePrice, setComparePrice] = useState(product?.compare_price ?? '');
   const [description, setDescription] = useState(product?.description || '');
@@ -134,8 +128,8 @@ export default function ProductForm({ mode, product, onCreated, submitLabel }) {
         <div className="field">
           <label>Kategori</label>
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+            {categoryOptions.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
             ))}
           </select>
         </div>
