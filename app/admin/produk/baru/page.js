@@ -8,7 +8,7 @@ export default async function AdminNewProductPage() {
   const supabase = getSupabaseAdmin();
   const { data: categories } = await supabase
     .from('product_categories')
-    .select('slug, name')
+    .select('slug, name, parent_slug')
     .order('sort_order', { ascending: true });
 
   return (

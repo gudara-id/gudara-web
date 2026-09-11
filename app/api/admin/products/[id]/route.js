@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
-const VALID_CATEGORIES = ['daily', 'sport', 'basic', 'custom'];
+const VALID_GENDERS = ['man', 'woman', 'kids', 'unisex'];
 
 function slugify(str) {
   return String(str || '')
@@ -10,20 +10,32 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
+async function fetchValidCategories(supabase, slugs) {
+  if (!slugs?.length) return [];
+  const { data, error } = await supabase
+    .from('product_categories')
+    .select('id, slug')
+    .in('slug', slugs);
+  if (error) return [];
+  return data || [];
+}
+
 export async function PATCH(req, { params }) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
 
   const name = (body.name || '').trim();
-  const category = body.category;
+  const categorySlugs = Array.isArray(body.categories)
+    ? body.categories.filter(Boolean)
+    : body.category
+    ? [body.category]
+    : [];
+  const gender = body.gender || 'unisex';
   const slug = slugify(body.slug || body.name);
   const price = Number(body.price);
   const comparePrice = body.compare_price === '' || body.compare_price == null ? null : Number(body.compare_price);
 
   if (!name) return Response.json({ error: 'Nama produk wajib diisi.' }, { status: 400 });
-  if (!VALID_CATEGORIES.includes(category)) {
-    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
-  }
   if (!slug) return Response.json({ error: 'Slug wajib diisi.' }, { status: 400 });
   if (!Number.isFinite(price) || price < 0) {
     return Response.json({ error: 'Harga tidak valid.' }, { status: 400 });
@@ -31,14 +43,24 @@ export async function PATCH(req, { params }) {
   if (comparePrice != null && (!Number.isFinite(comparePrice) || comparePrice < 0)) {
     return Response.json({ error: 'Harga coret tidak valid.' }, { status: 400 });
   }
+  if (!VALID_GENDERS.includes(gender)) {
+    return Response.json({ error: 'Gender tidak valid.' }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdmin();
+
+  const matchedCategories = await fetchValidCategories(supabase, categorySlugs);
+  if (!matchedCategories.length) {
+    return Response.json({ error: 'Pilih minimal satu kategori yang valid.' }, { status: 400 });
+  }
+
   const { error } = await supabase
     .from('products')
     .update({
       name,
       slug,
-      category,
+      category: matchedCategories[0].slug, // kolom lama: kategori "utama"
+      gender,
       description: body.description || null,
       material_spec: body.material_spec || null,
       care_instructions: body.care_instructions || null,
@@ -52,6 +74,14 @@ export async function PATCH(req, { params }) {
     const msg = error.code === '23505' ? 'Slug ini sudah dipakai produk lain.' : error.message;
     return Response.json({ error: msg }, { status: 500 });
   }
+
+  // Ganti seluruh set link kategori produk ini (hapus lama, insert yang baru
+  // dipilih di form) — lebih sederhana & tidak rawan sisa data dibanding
+  // diff insert/delete per-item.
+  await supabase.from('product_category_links').delete().eq('product_id', id);
+  await supabase
+    .from('product_category_links')
+    .insert(matchedCategories.map((c) => ({ product_id: id, category_id: c.id })));
 
   return Response.json({ success: true, slug });
 }

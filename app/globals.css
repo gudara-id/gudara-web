@@ -428,6 +428,9 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
 }
 .filter-pill:hover{border-color:var(--ink);color:var(--ink);}
 .filter-pill.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+/* Sub-kategori (mis. Badminton di bawah induk "Sport Authentic") — lebih
+   kecil & lebih tipis supaya jelas bukan kategori utama yang sejajar. */
+.filter-pill--sub{padding:6px 14px;font-size:11px;opacity:.85;}
  
 .etalase-toolbar{
   display:flex;justify-content:space-between;align-items:center;
