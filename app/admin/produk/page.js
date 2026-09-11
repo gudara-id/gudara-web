@@ -3,8 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { formatRp, titleCase } from '@/lib/format';
 import AdminLogoutButton from '@/components/AdminLogoutButton';
 import AdminNav from '@/components/AdminNav';
+import CategoryManager from '@/components/CategoryManager';
 
-const TABS = ['all', 'daily', 'sport', 'basic', 'custom'];
 const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,19 @@ export default async function AdminProductsPage({ searchParams }) {
   const supabase = getSupabaseAdmin();
   const params = await searchParams;
   const filter = params?.category || 'all';
+
+  const { data: categoryRows } = await supabase
+    .from('product_categories')
+    .select('id, slug, name, sort_order')
+    .order('sort_order', { ascending: true });
+  const categories = categoryRows || [];
+  const categoryNameMap = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
+
+  const { data: productCounts } = await supabase.from('products').select('category');
+  const countMap = {};
+  (productCounts || []).forEach((p) => {
+    countMap[p.category] = (countMap[p.category] || 0) + 1;
+  });
 
   let query = supabase
     .from('products')
@@ -45,14 +58,22 @@ export default async function AdminProductsPage({ searchParams }) {
         </div>
       </div>
 
+      <CategoryManager categories={categories.map((c) => ({ ...c, productCount: countMap[c.slug] || 0 }))} />
+
       <div className="admin-tabs">
-        {TABS.map((c) => (
+        <Link
+          href="/admin/produk?category=all"
+          className={`admin-tab${filter === 'all' ? ' is-active' : ''}`}
+        >
+          Semua
+        </Link>
+        {categories.map((c) => (
           <Link
-            key={c}
-            href={`/admin/produk?category=${c}`}
-            className={`admin-tab${filter === c ? ' is-active' : ''}`}
+            key={c.slug}
+            href={`/admin/produk?category=${c.slug}`}
+            className={`admin-tab${filter === c.slug ? ' is-active' : ''}`}
           >
-            {c === 'all' ? 'Semua' : titleCase(c)}
+            {c.name}
           </Link>
         ))}
       </div>
@@ -87,7 +108,7 @@ export default async function AdminProductsPage({ searchParams }) {
                   <td>
                     <Link href={`/admin/produk/${p.id}`}>{p.name}</Link>
                   </td>
-                  <td>{titleCase(p.category)}</td>
+                  <td>{categoryNameMap[p.category] || titleCase(p.category)}</td>
                   <td>{formatRp(p.price)}</td>
                   <td>{totalStock}</td>
                   <td>

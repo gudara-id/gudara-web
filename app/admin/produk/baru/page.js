@@ -1,7 +1,16 @@
 import Link from 'next/link';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import ProductWizard from '@/components/ProductWizard';
 
-export default function AdminNewProductPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AdminNewProductPage() {
+  const supabase = getSupabaseAdmin();
+  const { data: categories } = await supabase
+    .from('product_categories')
+    .select('slug, name')
+    .order('sort_order', { ascending: true });
+
   return (
     <section className="wrap admin-shell admin-shell--narrow">
       <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
@@ -13,7 +22,7 @@ export default function AdminNewProductPage() {
         </div>
       </div>
 
-      <ProductWizard />
+      <ProductWizard categories={categories || []} />
     </section>
   );
 }

@@ -1,0 +1,636 @@
+diff --git a/app/admin/produk/[id]/page.js b/app/admin/produk/[id]/page.js
+index f750a17..9a4b8b4 100644
+--- a/app/admin/produk/[id]/page.js
++++ b/app/admin/produk/[id]/page.js
+@@ -16,6 +16,11 @@ export default async function AdminEditProductPage({ params }) {
+     .eq('id', id)
+     .single();
+ 
++  const { data: categories } = await supabase
++    .from('product_categories')
++    .select('slug, name')
++    .order('sort_order', { ascending: true });
++
+   if (!product) {
+     return (
+       <section className="wrap admin-shell admin-shell--narrow">
+@@ -36,7 +41,7 @@ export default async function AdminEditProductPage({ params }) {
+         </div>
+       </div>
+ 
+-      <ProductForm mode="edit" product={product} />
++      <ProductForm mode="edit" product={product} categories={categories || []} />
+       <ProductImages
+         productId={product.id}
+         images={product.product_images || []}
+diff --git a/app/admin/produk/baru/page.js b/app/admin/produk/baru/page.js
+index 47009b5..f782ef3 100644
+--- a/app/admin/produk/baru/page.js
++++ b/app/admin/produk/baru/page.js
+@@ -1,7 +1,16 @@
+ import Link from 'next/link';
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import ProductWizard from '@/components/ProductWizard';
+ 
+-export default function AdminNewProductPage() {
++export const dynamic = 'force-dynamic';
++
++export default async function AdminNewProductPage() {
++  const supabase = getSupabaseAdmin();
++  const { data: categories } = await supabase
++    .from('product_categories')
++    .select('slug, name')
++    .order('sort_order', { ascending: true });
++
+   return (
+     <section className="wrap admin-shell admin-shell--narrow">
+       <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
+@@ -13,7 +22,7 @@ export default function AdminNewProductPage() {
+         </div>
+       </div>
+ 
+-      <ProductWizard />
++      <ProductWizard categories={categories || []} />
+     </section>
+   );
+ }
+diff --git a/app/admin/produk/page.js b/app/admin/produk/page.js
+index d52d593..6f152e5 100644
+--- a/app/admin/produk/page.js
++++ b/app/admin/produk/page.js
+@@ -3,8 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ import { formatRp, titleCase } from '@/lib/format';
+ import AdminLogoutButton from '@/components/AdminLogoutButton';
+ import AdminNav from '@/components/AdminNav';
++import CategoryManager from '@/components/CategoryManager';
+ 
+-const TABS = ['all', 'daily', 'sport', 'basic', 'custom'];
+ const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
+ 
+ export const dynamic = 'force-dynamic';
+@@ -20,6 +20,19 @@ export default async function AdminProductsPage({ searchParams }) {
+   const params = await searchParams;
+   const filter = params?.category || 'all';
+ 
++  const { data: categoryRows } = await supabase
++    .from('product_categories')
++    .select('id, slug, name, sort_order')
++    .order('sort_order', { ascending: true });
++  const categories = categoryRows || [];
++  const categoryNameMap = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
++
++  const { data: productCounts } = await supabase.from('products').select('category');
++  const countMap = {};
++  (productCounts || []).forEach((p) => {
++    countMap[p.category] = (countMap[p.category] || 0) + 1;
++  });
++
+   let query = supabase
+     .from('products')
+     .select('id, slug, name, category, price, compare_price, is_active, created_at, product_images(url, sort_order), product_variants(stock)')
+@@ -45,14 +58,22 @@ export default async function AdminProductsPage({ searchParams }) {
+         </div>
+       </div>
+ 
++      <CategoryManager categories={categories.map((c) => ({ ...c, productCount: countMap[c.slug] || 0 }))} />
++
+       <div className="admin-tabs">
+-        {TABS.map((c) => (
++        <Link
++          href="/admin/produk?category=all"
++          className={`admin-tab${filter === 'all' ? ' is-active' : ''}`}
++        >
++          Semua
++        </Link>
++        {categories.map((c) => (
+           <Link
+-            key={c}
+-            href={`/admin/produk?category=${c}`}
+-            className={`admin-tab${filter === c ? ' is-active' : ''}`}
++            key={c.slug}
++            href={`/admin/produk?category=${c.slug}`}
++            className={`admin-tab${filter === c.slug ? ' is-active' : ''}`}
+           >
+-            {c === 'all' ? 'Semua' : titleCase(c)}
++            {c.name}
+           </Link>
+         ))}
+       </div>
+@@ -87,7 +108,7 @@ export default async function AdminProductsPage({ searchParams }) {
+                   <td>
+                     <Link href={`/admin/produk/${p.id}`}>{p.name}</Link>
+                   </td>
+-                  <td>{titleCase(p.category)}</td>
++                  <td>{categoryNameMap[p.category] || titleCase(p.category)}</td>
+                   <td>{formatRp(p.price)}</td>
+                   <td>{totalStock}</td>
+                   <td>
+diff --git a/app/api/admin/categories/[id]/route.js b/app/api/admin/categories/[id]/route.js
+new file mode 100644
+index 0000000..3c4cf38
+--- /dev/null
++++ b/app/api/admin/categories/[id]/route.js
+@@ -0,0 +1,62 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++// Catatan: mengubah slug kategori yang SUDAH dipakai produk akan membuat
++// produk itu "lepas" dari kategorinya (products.category tidak ikut
++// ter-update otomatis, karena bukan foreign key — lihat catatan di
++// supabase/product-categories.sql). Makanya di bawah ini slug tidak
++// diizinkan diubah kalau kategori masih punya produk; yang boleh diubah
++// cuma nama tampilannya.
++export async function PATCH(req, { params }) {
++  const { id } = await params;
++  const { name } = await req.json();
++
++  if (!name?.trim()) {
++    return Response.json({ error: 'Nama kategori wajib diisi.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++  const { data, error } = await supabase
++    .from('product_categories')
++    .update({ name: name.trim() })
++    .eq('id', id)
++    .select()
++    .single();
++
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++  return Response.json({ category: data });
++}
++
++export async function DELETE(req, { params }) {
++  const { id } = await params;
++  const supabase = getSupabaseAdmin();
++
++  const { data: category, error: findError } = await supabase
++    .from('product_categories')
++    .select('slug')
++    .eq('id', id)
++    .single();
++  if (findError || !category) {
++    return Response.json({ error: 'Kategori tidak ditemukan.' }, { status: 404 });
++  }
++
++  // Cegah hapus kategori yang masih ada produknya — kalau dihapus,
++  // produk-produk itu jadi punya category yang "yatim" (tidak ada di
++  // product_categories lagi) dan tidak akan muncul di dropdown admin mana
++  // pun untuk dipindah kategorinya.
++  const { count } = await supabase
++    .from('products')
++    .select('id', { count: 'exact', head: true })
++    .eq('category', category.slug);
++
++  if (count > 0) {
++    return Response.json(
++      { error: `Tidak bisa dihapus — masih dipakai ${count} produk. Pindahkan produk itu ke kategori lain dulu.` },
++      { status: 400 }
++    );
++  }
++
++  const { error } = await supabase.from('product_categories').delete().eq('id', id);
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  return Response.json({ success: true });
++}
+diff --git a/app/api/admin/categories/route.js b/app/api/admin/categories/route.js
+new file mode 100644
+index 0000000..7c1e79f
+--- /dev/null
++++ b/app/api/admin/categories/route.js
+@@ -0,0 +1,64 @@
++import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export async function GET() {
++  const supabase = getSupabaseAdmin();
++  const { data: categories, error } = await supabase
++    .from('product_categories')
++    .select('id, slug, name, sort_order')
++    .order('sort_order', { ascending: true });
++
++  if (error) return Response.json({ error: error.message }, { status: 500 });
++
++  // Ikut kirim jumlah produk per kategori, supaya UI admin bisa cegah user
++  // menghapus kategori yang masih dipakai produk (lihat DELETE di
++  // [id]/route.js).
++  const { data: counts } = await supabase.from('products').select('category');
++  const countMap = {};
++  (counts || []).forEach((p) => {
++    countMap[p.category] = (countMap[p.category] || 0) + 1;
++  });
++
++  return Response.json({
++    categories: categories.map((c) => ({ ...c, productCount: countMap[c.slug] || 0 })),
++  });
++}
++
++export async function POST(req) {
++  const { name, slug: slugInput } = await req.json();
++
++  if (!name?.trim()) {
++    return Response.json({ error: 'Nama kategori wajib diisi.' }, { status: 400 });
++  }
++  const slug = slugify(slugInput || name);
++  if (!slug) {
++    return Response.json({ error: 'Slug tidak valid.' }, { status: 400 });
++  }
++
++  const supabase = getSupabaseAdmin();
++
++  const { count } = await supabase
++    .from('product_categories')
++    .select('id', { count: 'exact', head: true });
++
++  const { data, error } = await supabase
++    .from('product_categories')
++    .insert({ name: name.trim(), slug, sort_order: (count || 0) + 1 })
++    .select()
++    .single();
++
++  if (error) {
++    // Kode 23505 = unique violation (slug sudah dipakai kategori lain).
++    const message = error.code === '23505' ? `Slug "${slug}" sudah dipakai kategori lain.` : error.message;
++    return Response.json({ error: message }, { status: 400 });
++  }
++
++  return Response.json({ category: data });
++}
+diff --git a/app/etalase/page.js b/app/etalase/page.js
+index 208a564..08e9e17 100644
+--- a/app/etalase/page.js
++++ b/app/etalase/page.js
+@@ -1,7 +1,7 @@
+ export const dynamic = 'force-dynamic';
+  
+ import Link from 'next/link';
+-import { getProductPage } from '@/lib/products';
++import { getProductPage, getCategories } from '@/lib/products';
+ import ProductGrid from '@/components/ProductGrid';
+ import Pagination from '@/components/Pagination';
+ import SortSelect from '@/components/SortSelect';
+@@ -18,9 +18,10 @@ export default async function EtalasePage({ searchParams }) {
+   const q = sp?.q?.trim() || '';
+   const sort = VALID_SORTS.includes(sp?.sort) ? sp.sort : 'newest';
+   const page = Math.max(1, parseInt(sp?.page, 10) || 1);
+-  const { items: products, total, totalPages } = await getProductPage(kat, page, 24, sort, q, {
+-    excludeCustom: true,
+-  });
++  const [{ items: products, total, totalPages }, categories] = await Promise.all([
++    getProductPage(kat, page, 24, sort, q, { excludeCustom: true }),
++    getCategories(),
++  ]);
+   const title = q ? `Hasil untuk "${q}"` : kat ? titleCase(kat) : 'Semua Produk';
+  
+   return (
+@@ -43,9 +44,13 @@ export default async function EtalasePage({ searchParams }) {
+  
+       <div className="filter-row">
+         <Link href="/etalase" className={`filter-pill${!kat && !q ? ' active' : ''}`}>Semua</Link>
+-        <Link href="/etalase?kat=daily" className={`filter-pill${kat === 'daily' ? ' active' : ''}`}>Daily &amp; Casual</Link>
+-        <Link href="/etalase?kat=sport" className={`filter-pill${kat === 'sport' ? ' active' : ''}`}>Sport Authentic</Link>
+-        <Link href="/etalase?kat=basic" className={`filter-pill${kat === 'basic' ? ' active' : ''}`}>Basic</Link>
++        {categories
++          .filter((c) => c.slug !== 'custom')
++          .map((c) => (
++            <Link key={c.slug} href={`/etalase?kat=${c.slug}`} className={`filter-pill${kat === c.slug ? ' active' : ''}`}>
++              {c.name}
++            </Link>
++          ))}
+       </div>
+  
+       <div className="etalase-toolbar">
+diff --git a/components/CategoryManager.jsx b/components/CategoryManager.jsx
+new file mode 100644
+index 0000000..7513f5b
+--- /dev/null
++++ b/components/CategoryManager.jsx
+@@ -0,0 +1,183 @@
++'use client';
++
++import { useState } from 'react';
++import { useRouter } from 'next/navigation';
++
++function slugify(str) {
++  return String(str || '')
++    .toLowerCase()
++    .trim()
++    .replace(/[^a-z0-9]+/g, '-')
++    .replace(/^-+|-+$/g, '');
++}
++
++export default function CategoryManager({ categories }) {
++  const router = useRouter();
++  const [open, setOpen] = useState(false);
++  const [editingId, setEditingId] = useState(null);
++  const [editName, setEditName] = useState('');
++  const [newName, setNewName] = useState('');
++  const [busy, setBusy] = useState(false);
++  const [msg, setMsg] = useState(null); // { text, ok }
++
++  function startEdit(cat) {
++    setEditingId(cat.id);
++    setEditName(cat.name);
++    setMsg(null);
++  }
++
++  async function saveEdit(id) {
++    if (!editName.trim()) return;
++    setBusy(true);
++    setMsg(null);
++    try {
++      const res = await fetch(`/api/admin/categories/${id}`, {
++        method: 'PATCH',
++        headers: { 'content-type': 'application/json' },
++        body: JSON.stringify({ name: editName }),
++      });
++      const data = await res.json();
++      if (!res.ok) throw new Error(data.error);
++      setEditingId(null);
++      router.refresh();
++    } catch (err) {
++      setMsg({ text: err.message, ok: false });
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  async function handleAdd(e) {
++    e.preventDefault();
++    if (!newName.trim()) return;
++    setBusy(true);
++    setMsg(null);
++    try {
++      const res = await fetch('/api/admin/categories', {
++        method: 'POST',
++        headers: { 'content-type': 'application/json' },
++        body: JSON.stringify({ name: newName }),
++      });
++      const data = await res.json();
++      if (!res.ok) throw new Error(data.error);
++      setNewName('');
++      setMsg({ text: `Kategori "${data.category.name}" ditambahkan.`, ok: true });
++      router.refresh();
++    } catch (err) {
++      setMsg({ text: err.message, ok: false });
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  async function handleDelete(cat) {
++    if (!confirm(`Hapus kategori "${cat.name}"?`)) return;
++    setBusy(true);
++    setMsg(null);
++    try {
++      const res = await fetch(`/api/admin/categories/${cat.id}`, { method: 'DELETE' });
++      const data = await res.json();
++      if (!res.ok) throw new Error(data.error);
++      router.refresh();
++    } catch (err) {
++      setMsg({ text: err.message, ok: false });
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  return (
++    <div className="admin-card" style={{ marginBottom: 20 }}>
++      <button
++        type="button"
++        onClick={() => setOpen((v) => !v)}
++        style={{
++          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
++          width: '100%', fontWeight: 600, fontSize: 14,
++        }}
++      >
++        Kelola Kategori ({categories.length})
++        <span>{open ? '−' : '+'}</span>
++      </button>
++
++      {open && (
++        <div style={{ marginTop: 16 }}>
++          <div className="admin-table-wrap">
++            <table className="admin-table">
++              <thead>
++                <tr>
++                  <th>Nama</th>
++                  <th>Slug</th>
++                  <th>Jumlah Produk</th>
++                  <th></th>
++                </tr>
++              </thead>
++              <tbody>
++                {categories.map((c) => (
++                  <tr key={c.id}>
++                    <td>
++                      {editingId === c.id ? (
++                        <input value={editName} onChange={(e) => setEditName(e.target.value)} style={{ maxWidth: 220 }} />
++                      ) : (
++                        c.name
++                      )}
++                    </td>
++                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-soft)' }}>{c.slug}</td>
++                    <td>{c.productCount}</td>
++                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
++                      {editingId === c.id ? (
++                        <>
++                          <button type="button" className="btn btn--dark" style={{ fontSize: 12, padding: '6px 12px' }} disabled={busy} onClick={() => saveEdit(c.id)}>
++                            Simpan
++                          </button>{' '}
++                          <button type="button" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => setEditingId(null)}>
++                            Batal
++                          </button>
++                        </>
++                      ) : (
++                        <>
++                          <button type="button" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => startEdit(c)}>
++                            Edit
++                          </button>{' '}
++                          <button
++                            type="button"
++                            style={{ fontSize: 12, padding: '6px 12px', color: c.productCount > 0 ? 'var(--ink-soft)' : '#C6302B' }}
++                            disabled={c.productCount > 0 || busy}
++                            title={c.productCount > 0 ? 'Pindahkan produk ke kategori lain dulu sebelum menghapus' : 'Hapus kategori'}
++                            onClick={() => handleDelete(c)}
++                          >
++                            Hapus
++                          </button>
++                        </>
++                      )}
++                    </td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </div>
++
++          <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: 420 }}>
++            <input
++              placeholder="Nama kategori baru (mis. Running Series)"
++              value={newName}
++              onChange={(e) => setNewName(e.target.value)}
++              style={{ flex: 1 }}
++            />
++            <button type="submit" className="btn btn--dark" style={{ fontSize: 13 }} disabled={busy}>
++              + Tambah
++            </button>
++          </form>
++          {newName.trim() && (
++            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 6 }}>
++              Slug: <code>{slugify(newName)}</code> — dipakai di URL etalase (?kat={slugify(newName)}) dan sebagai nilai kategori produk.
++            </p>
++          )}
++          {msg && (
++            <p style={{ fontSize: 13, marginTop: 10, color: msg.ok ? '#16A34A' : '#C6302B' }}>{msg.text}</p>
++          )}
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/components/ProductForm.jsx b/components/ProductForm.jsx
+index e7a8e1b..98a2de2 100644
+--- a/components/ProductForm.jsx
++++ b/components/ProductForm.jsx
+@@ -3,13 +3,6 @@
+ import { useState } from 'react';
+ import { useRouter } from 'next/navigation';
+ 
+-const CATEGORIES = [
+-  { value: 'daily', label: 'Daily & Casual' },
+-  { value: 'sport', label: 'Sport Authentic' },
+-  { value: 'basic', label: 'Basic' },
+-  { value: 'custom', label: 'Custom Kits' },
+-];
+-
+ function slugify(str) {
+   return String(str || '')
+     .toLowerCase()
+@@ -18,14 +11,15 @@ function slugify(str) {
+     .replace(/^-+|-+$/g, '');
+ }
+ 
+-export default function ProductForm({ mode, product, onCreated, submitLabel }) {
++export default function ProductForm({ mode, product, categories, onCreated, submitLabel }) {
+   const router = useRouter();
+   const isEdit = mode === 'edit';
++  const categoryOptions = categories?.length ? categories : [{ slug: product?.category, name: product?.category }];
+ 
+   const [name, setName] = useState(product?.name || '');
+   const [slug, setSlug] = useState(product?.slug || '');
+   const [slugTouched, setSlugTouched] = useState(isEdit);
+-  const [category, setCategory] = useState(product?.category || 'daily');
++  const [category, setCategory] = useState(product?.category || categoryOptions[0]?.slug || '');
+   const [price, setPrice] = useState(product?.price ?? '');
+   const [comparePrice, setComparePrice] = useState(product?.compare_price ?? '');
+   const [description, setDescription] = useState(product?.description || '');
+@@ -134,8 +128,8 @@ export default function ProductForm({ mode, product, onCreated, submitLabel }) {
+         <div className="field">
+           <label>Kategori</label>
+           <select value={category} onChange={(e) => setCategory(e.target.value)}>
+-            {CATEGORIES.map((c) => (
+-              <option key={c.value} value={c.value}>{c.label}</option>
++            {categoryOptions.map((c) => (
++              <option key={c.slug} value={c.slug}>{c.name}</option>
+             ))}
+           </select>
+         </div>
+diff --git a/components/ProductWizard.jsx b/components/ProductWizard.jsx
+index df9f1a1..08e93b4 100644
+--- a/components/ProductWizard.jsx
++++ b/components/ProductWizard.jsx
+@@ -12,7 +12,7 @@ const STEPS = [
+   { key: 'varian', label: 'Varian & Stok' },
+ ];
+ 
+-export default function ProductWizard() {
++export default function ProductWizard({ categories }) {
+   const [product, setProduct] = useState(null); // { id, slug, name, category }
+   const [step, setStep] = useState('info');
+ 
+@@ -45,7 +45,7 @@ export default function ProductWizard() {
+       </div>
+ 
+       {step === 'info' && (
+-        <ProductForm mode="create" onCreated={handleCreated} submitLabel="Lanjut: Tambah Foto →" />
++        <ProductForm mode="create" categories={categories} onCreated={handleCreated} submitLabel="Lanjut: Tambah Foto →" />
+       )}
+ 
+       {step === 'foto' && product && (
+diff --git a/lib/products.js b/lib/products.js
+index 27c1b05..749c3be 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -107,6 +107,22 @@ function normalizeCard(p) {
+ }
+  
+ // Mirrors renderProductRow(elId, kat, limit) from the prototype's products.js
++// Dipakai filter pill di halaman etalase, supaya kategori baru yang
++// ditambahkan admin (lihat /admin/produk → Kelola Kategori) langsung bisa
++// di-browse customer tanpa perlu ubah kode.
++export async function getCategories() {
++  const supabase = getSupabase();
++  const { data, error } = await supabase
++    .from('product_categories')
++    .select('slug, name')
++    .order('sort_order', { ascending: true });
++  if (error) {
++    console.error('getCategories failed:', error.message);
++    return [];
++  }
++  return data || [];
++}
++
+ export async function getProductRow(kat, limit = 8, sort = 'newest', search = '', opts = {}) {
+   const supabase = getSupabase();
+   let query = supabase
+diff --git a/supabase/product-categories.sql b/supabase/product-categories.sql
+new file mode 100644
+index 0000000..69625f9
+--- /dev/null
++++ b/supabase/product-categories.sql
+@@ -0,0 +1,36 @@
++-- Sebelum ini, kategori produk cuma teks bebas ('daily' | 'sport' | 'basic' |
++-- 'custom') yang di-hardcode di beberapa tempat di kode (dropdown admin,
++-- tab filter admin, filter pill di etalase). Tabel ini bikin kategori jadi
++-- data yang bisa dikelola dari admin, tanpa perlu ubah kode tiap kali mau
++-- tambah kategori baru.
++--
++-- products.category TETAP kolom teks seperti sebelumnya (tidak diubah jadi
++-- foreign key) supaya tidak perlu migrasi data yang berisiko — categories.slug
++-- di tabel ini harus dijaga tetap konsisten dengan nilai yang dipakai di
++-- products.category lewat aplikasi (lihat app/api/admin/categories).
++create table if not exists product_categories (
++  id          uuid primary key default gen_random_uuid(),
++  slug        text unique not null,   -- dipakai sebagai nilai products.category & ?kat= di URL
++  name        text not null,          -- label yang ditampilkan ke user, mis. "Daily & Casual"
++  sort_order  integer not null default 0,
++  created_at  timestamptz not null default now()
++);
++
++-- Seed 4 kategori yang sudah ada di kode sebelum fitur ini dibuat, supaya
++-- produk yang sudah ada tidak "kehilangan" nama kategorinya di tampilan.
++insert into product_categories (slug, name, sort_order) values
++  ('daily', 'Daily & Casual', 1),
++  ('sport', 'Sport Authentic', 2),
++  ('basic', 'Basic', 3),
++  ('custom', 'Custom Kits', 4)
++on conflict (slug) do nothing;
++
++alter table product_categories enable row level security;
++
++-- Publik boleh baca (dipakai buat render filter pill di etalase) — tapi
++-- tidak ada policy insert/update/delete untuk anon, jadi tambah/edit/hapus
++-- kategori cuma bisa lewat /api/admin/categories (service role).
++create policy "anyone can read categories"
++  on product_categories for select
++  to anon
++  using (true);

@@ -12,7 +12,7 @@ const STEPS = [
   { key: 'varian', label: 'Varian & Stok' },
 ];
 
-export default function ProductWizard() {
+export default function ProductWizard({ categories }) {
   const [product, setProduct] = useState(null); // { id, slug, name, category }
   const [step, setStep] = useState('info');
 
@@ -45,7 +45,7 @@ export default function ProductWizard() {
       </div>
 
       {step === 'info' && (
-        <ProductForm mode="create" onCreated={handleCreated} submitLabel="Lanjut: Tambah Foto →" />
+        <ProductForm mode="create" categories={categories} onCreated={handleCreated} submitLabel="Lanjut: Tambah Foto →" />
       )}
 
       {step === 'foto' && product && (

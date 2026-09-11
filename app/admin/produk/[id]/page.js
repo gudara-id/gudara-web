@@ -16,6 +16,11 @@ export default async function AdminEditProductPage({ params }) {
     .eq('id', id)
     .single();
 
+  const { data: categories } = await supabase
+    .from('product_categories')
+    .select('slug, name')
+    .order('sort_order', { ascending: true });
+
   if (!product) {
     return (
       <section className="wrap admin-shell admin-shell--narrow">
@@ -36,7 +41,7 @@ export default async function AdminEditProductPage({ params }) {
         </div>
       </div>
 
-      <ProductForm mode="edit" product={product} />
+      <ProductForm mode="edit" product={product} categories={categories || []} />
       <ProductImages
         productId={product.id}
         images={product.product_images || []}
