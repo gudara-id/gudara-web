@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic';
  
 import Link from 'next/link';
-import { getProductRow } from '@/lib/products';
+import { getProductPage } from '@/lib/products';
 import ProductGrid from '@/components/ProductGrid';
+import Pagination from '@/components/Pagination';
 import SortSelect from '@/components/SortSelect';
 import SearchBox from '@/components/SearchBox';
 import { titleCase } from '@/lib/format';
@@ -16,7 +17,10 @@ export default async function EtalasePage({ searchParams }) {
   const kat = sp?.kat;
   const q = sp?.q?.trim() || '';
   const sort = VALID_SORTS.includes(sp?.sort) ? sp.sort : 'newest';
-  const products = await getProductRow(kat, 24, sort, q, { excludeCustom: true });
+  const page = Math.max(1, parseInt(sp?.page, 10) || 1);
+  const { items: products, total, totalPages } = await getProductPage(kat, page, 24, sort, q, {
+    excludeCustom: true,
+  });
   const title = q ? `Hasil untuk "${q}"` : kat ? titleCase(kat) : 'Semua Produk';
  
   return (
@@ -47,7 +51,7 @@ export default async function EtalasePage({ searchParams }) {
       <div className="etalase-toolbar">
         <SearchBox current={q} />
         <div className="etalase-toolbar__actions">
-          <span className="etalase-count">{products.length} produk</span>
+          <span className="etalase-count">{total} produk</span>
           <SortSelect current={sort} />
         </div>
       </div>
@@ -60,10 +64,12 @@ export default async function EtalasePage({ searchParams }) {
           <p style={{ marginTop: 4, fontSize: 13 }}>Coba kata kunci lain, atau lihat semua produk.</p>
         </div>
       ) : (
-        <div style={{ marginBottom: 80 }}>
+        <div style={{ marginBottom: 0 }}>
           <ProductGrid products={products} />
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} searchParams={sp} />
     </section>
   );
 }
