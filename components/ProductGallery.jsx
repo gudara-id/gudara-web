@@ -131,13 +131,23 @@ export default function ProductGallery({ images, name }) {
     const rawX = ((e.clientX - rect.left) / rect.width) * 100;
     const rawY = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // Clamp so the lens box (and the zoomed view) never goes past the image edge.
+    // Clamp so the lens box overlay (the visual square drawn on top of the
+    // main photo) never visually spills past the image edges.
     const half = LENS_SIZE_PCT / 2;
     const clampedX = Math.min(Math.max(rawX, half), 100 - half);
     const clampedY = Math.min(Math.max(rawY, half), 100 - half);
-
     setLensPos({ x: clampedX - half, y: clampedY - half });
-    setBgPos({ x: clampedX, y: clampedY });
+
+    // The zoom panel's background-position uses the RAW cursor position
+    // (only clamped to the 0–100 image bounds, not the lens box's own
+    // half-size margin). Reusing the lens box's clamped value here used to
+    // cap how far the magnified view could pan — e.g. hovering right at the
+    // collar/top edge of a photo would still show content ~12% further down,
+    // cropping out the top of the photo. Raw position lets the panel reach
+    // the true edges of the image.
+    const bgX = Math.min(Math.max(rawX, 0), 100);
+    const bgY = Math.min(Math.max(rawY, 0), 100);
+    setBgPos({ x: bgX, y: bgY });
   }
 
   function handleMainClick(e) {
