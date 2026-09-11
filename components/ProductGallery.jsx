@@ -31,6 +31,22 @@ export default function ProductGallery({ images, name }) {
   const [isZooming, setIsZooming] = useState(false);
   const [lensPos, setLensPos] = useState({ x: 0, y: 0 }); // top-left of lens, in %
   const [bgPos, setBgPos] = useState({ x: 50, y: 50 }); // background-position center, in %
+  // Ukuran asli foto yang lagi aktif — dipakai supaya panel zoom bisa
+  // menghitung background-size dalam px yang menjaga rasio foto (meniru
+  // object-fit:cover lalu dikali ZOOM_LEVEL), bukan cuma diregangkan pakai
+  // persentase tetap terhadap kotak container. Tanpa ini, foto yang rasionya
+  // beda dari kotak (aspect-ratio:4/5) akan tampak "diregangkan" dan area
+  // yang dizoom jadi salah posisi/terpotong.
+  const [naturalSize, setNaturalSize] = useState(null);
+
+  function getZoomBackgroundSize() {
+    if (!naturalSize || !mainRef.current) return `${ZOOM_LEVEL * 100}% ${ZOOM_LEVEL * 100}%`;
+    const rect = mainRef.current.getBoundingClientRect();
+    const coverScale = Math.max(rect.width / naturalSize.width, rect.height / naturalSize.height);
+    const width = naturalSize.width * coverScale * ZOOM_LEVEL;
+    const height = naturalSize.height * coverScale * ZOOM_LEVEL;
+    return `${width}px ${height}px`;
+  }
 
   // Fullscreen tap-to-view (mobile / touch devices without a mouse).
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -174,7 +190,12 @@ export default function ProductGallery({ images, name }) {
         {allBroken ? (
           <div className="pdp-gallery__fallback">Foto produk belum tersedia</div>
         ) : (
-          <img src={images[active]} alt={name} onError={() => markBroken(active)} />
+          <img
+            src={images[active]}
+            alt={name}
+            onError={() => markBroken(active)}
+            onLoad={(e) => setNaturalSize({ width: e.target.naturalWidth, height: e.target.naturalHeight })}
+          />
         )}
 
         {isZooming && !allBroken && (
@@ -227,7 +248,7 @@ export default function ProductGallery({ images, name }) {
             className="pdp-gallery__zoom-panel"
             style={{
               backgroundImage: `url(${images[active]})`,
-              backgroundSize: `${ZOOM_LEVEL * 100}% ${ZOOM_LEVEL * 100}%`,
+              backgroundSize: getZoomBackgroundSize(),
               backgroundPosition: `${bgPos.x}% ${bgPos.y}%`,
             }}
           />
