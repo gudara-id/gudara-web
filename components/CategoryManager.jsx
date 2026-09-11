@@ -17,8 +17,14 @@ export default function CategoryManager({ categories }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [newName, setNewName] = useState('');
+  const [newParentSlug, setNewParentSlug] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // { text, ok }
+  // Cuma kategori tanpa induk yang boleh jadi induk (tidak ada nested >2
+  // level) — sesuai kebutuhan sekarang: "Sport Authentic" (induk) menaungi
+  // "Badminton"/"Running"/"Sepak Bola" (anak).
+  const parentOptions = categories.filter((c) => !c.parent_slug);
+  const nameForSlug = (slug) => categories.find((c) => c.slug === slug)?.name || slug;
 
   function startEdit(cat) {
     setEditingId(cat.id);
@@ -56,11 +62,12 @@ export default function CategoryManager({ categories }) {
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({ name: newName, parent_slug: newParentSlug || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setNewName('');
+      setNewParentSlug('');
       setMsg({ text: `Kategori "${data.category.name}" ditambahkan.`, ok: true });
       router.refresh();
     } catch (err) {
@@ -108,6 +115,7 @@ export default function CategoryManager({ categories }) {
                 <tr>
                   <th>Nama</th>
                   <th>Slug</th>
+                  <th>Induk</th>
                   <th>Jumlah Produk</th>
                   <th></th>
                 </tr>
@@ -123,6 +131,7 @@ export default function CategoryManager({ categories }) {
                       )}
                     </td>
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-soft)' }}>{c.slug}</td>
+                    <td style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{c.parent_slug ? nameForSlug(c.parent_slug) : '—'}</td>
                     <td>{c.productCount}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {editingId === c.id ? (
@@ -157,13 +166,23 @@ export default function CategoryManager({ categories }) {
             </table>
           </div>
 
-          <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: 420 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: 560, flexWrap: 'wrap' }}>
             <input
-              placeholder="Nama kategori baru (mis. Running Series)"
+              placeholder="Nama kategori baru (mis. Badminton)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 180 }}
             />
+            <select
+              value={newParentSlug}
+              onChange={(e) => setNewParentSlug(e.target.value)}
+              style={{ minWidth: 180 }}
+            >
+              <option value="">Tanpa induk (kategori utama)</option>
+              {parentOptions.map((p) => (
+                <option key={p.slug} value={p.slug}>Di bawah &quot;{p.name}&quot;</option>
+              ))}
+            </select>
             <button type="submit" className="btn btn--dark" style={{ fontSize: 13 }} disabled={busy}>
               + Tambah
             </button>

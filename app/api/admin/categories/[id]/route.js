@@ -8,16 +8,22 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 // cuma nama tampilannya.
 export async function PATCH(req, { params }) {
   const { id } = await params;
-  const { name } = await req.json();
+  const { name, parent_slug: parentSlug } = await req.json();
 
   if (!name?.trim()) {
     return Response.json({ error: 'Nama kategori wajib diisi.' }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
+  const update = { name: name.trim() };
+  // parent_slug ikut diupdate hanya kalau dikirim eksplisit di body — supaya
+  // request lama yang cuma kirim {name} tidak sengaja menghapus grouping
+  // yang sudah diset sebelumnya.
+  if (parentSlug !== undefined) update.parent_slug = parentSlug || null;
+
   const { data, error } = await supabase
     .from('product_categories')
-    .update({ name: name.trim() })
+    .update(update)
     .eq('id', id)
     .select()
     .single();
@@ -39,14 +45,14 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: 'Kategori tidak ditemukan.' }, { status: 404 });
   }
 
-  // Cegah hapus kategori yang masih ada produknya — kalau dihapus,
-  // produk-produk itu jadi punya category yang "yatim" (tidak ada di
-  // product_categories lagi) dan tidak akan muncul di dropdown admin mana
-  // pun untuk dipindah kategorinya.
+  // Cegah hapus kategori yang masih ada produknya (dicek dari
+  // product_category_links, bukan cuma products.category lama) — kalau
+  // dihapus, produk-produk itu jadi kehilangan link ke kategori ini dan
+  // tidak akan muncul di dropdown admin mana pun untuk dipindah kategorinya.
   const { count } = await supabase
-    .from('products')
-    .select('id', { count: 'exact', head: true })
-    .eq('category', category.slug);
+    .from('product_category_links')
+    .select('product_id', { count: 'exact', head: true })
+    .eq('category_id', id);
 
   if (count > 0) {
     return Response.json(

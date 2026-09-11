@@ -11,15 +11,42 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
+const GENDER_OPTIONS = [
+  { value: 'unisex', label: 'Unisex' },
+  { value: 'man', label: 'Man' },
+  { value: 'woman', label: 'Woman' },
+  { value: 'kids', label: 'Kids' },
+];
+
 export default function ProductForm({ mode, product, categories, onCreated, submitLabel }) {
   const router = useRouter();
   const isEdit = mode === 'edit';
   const categoryOptions = categories?.length ? categories : [{ slug: product?.category, name: product?.category }];
+  // Kelompokkan kategori per induk (mis. "Sport Authentic" menaungi
+  // "Badminton"/"Running"/"Sepak Bola") supaya checkbox-nya tidak sejajar
+  // membingungkan — kategori tanpa induk tampil sebagai grup tersendiri.
+  const topLevel = categoryOptions.filter((c) => !c.parent_slug);
+  const groupedOptions = topLevel.map((parent) => ({
+    ...parent,
+    children: categoryOptions.filter((c) => c.parent_slug === parent.slug),
+  }));
 
   const [name, setName] = useState(product?.name || '');
   const [slug, setSlug] = useState(product?.slug || '');
   const [slugTouched, setSlugTouched] = useState(isEdit);
-  const [category, setCategory] = useState(product?.category || categoryOptions[0]?.slug || '');
+  // Produk lama cuma punya 1 category (kolom lama); product?.categorySlugs
+  // (kalau dikirim halaman edit) berisi semua slug yang sudah ter-link lewat
+  // product_category_links, dipakai supaya checkbox yang sudah tercentang
+  // sebelumnya tampil benar saat form dibuka.
+  const initialCategories = product?.categorySlugs?.length
+    ? product.categorySlugs
+    : product?.category
+    ? [product.category]
+    : categoryOptions[0]?.slug
+    ? [categoryOptions[0].slug]
+    : [];
+  const [selectedCategories, setSelectedCategories] = useState(initialCategories);
+  const [gender, setGender] = useState(product?.gender || 'unisex');
   const [price, setPrice] = useState(product?.price ?? '');
   const [comparePrice, setComparePrice] = useState(product?.compare_price ?? '');
   const [description, setDescription] = useState(product?.description || '');
@@ -37,15 +64,27 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
     if (!slugTouched) setSlug(slugify(v));
   }
 
+  function toggleCategory(catSlug) {
+    setSelectedCategories((prev) =>
+      prev.includes(catSlug) ? prev.filter((s) => s !== catSlug) : [...prev, catSlug]
+    );
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!selectedCategories.length) {
+      setMsgOk(false);
+      setMsg('Pilih minimal satu kategori.');
+      return;
+    }
     setLoading(true);
     setMsg('');
 
     const payload = {
       name,
       slug,
-      category,
+      categories: selectedCategories,
+      gender,
       price: Number(price),
       compare_price: comparePrice === '' ? null : Number(comparePrice),
       description,
@@ -75,7 +114,7 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
         // Dipakai oleh alur "Tambah Produk" satu halaman (ProductWizard) —
         // lanjut ke langkah foto/varian di halaman yang sama, tanpa pindah
         // halaman dulu seperti sebelumnya.
-        onCreated({ id: data.id, slug: data.slug, name, category });
+        onCreated({ id: data.id, slug: data.slug, name, categories: selectedCategories });
       } else {
         router.push(`/admin/produk/${data.id}`);
       }
@@ -125,11 +164,42 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
             required
           />
         </div>
+        <div className="field field--full">
+          <label>Kategori (bisa pilih lebih dari satu)</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {groupedOptions.map((group) => (
+              <div key={group.slug}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--body)', textTransform: 'none', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(group.slug)}
+                    onChange={() => toggleCategory(group.slug)}
+                  />
+                  {group.name}
+                </label>
+                {group.children.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginLeft: 24, marginTop: 4 }}>
+                    {group.children.map((child) => (
+                      <label key={child.slug} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--body)', textTransform: 'none', fontSize: 13, color: 'var(--ink-soft)' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(child.slug)}
+                          onChange={() => toggleCategory(child.slug)}
+                        />
+                        {child.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="field">
-          <label>Kategori</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categoryOptions.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.name}</option>
+          <label>Gender</label>
+          <select value={gender} onChange={(e) => setGender(e.target.value)}>
+            {GENDER_OPTIONS.map((g) => (
+              <option key={g.value} value={g.value}>{g.label}</option>
             ))}
           </select>
         </div>

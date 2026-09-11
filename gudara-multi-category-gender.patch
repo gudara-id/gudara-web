@@ -1,0 +1,888 @@
+diff --git a/app/admin/produk/[id]/page.js b/app/admin/produk/[id]/page.js
+index 9a4b8b4..079030a 100644
+--- a/app/admin/produk/[id]/page.js
++++ b/app/admin/produk/[id]/page.js
+@@ -12,13 +12,15 @@ export default async function AdminEditProductPage({ params }) {
+ 
+   const { data: product } = await supabase
+     .from('products')
+-    .select('*, product_images(id, url, sort_order, variant_color), product_variants(id, color, size, sku, stock, price_override)')
++    .select(
++      '*, product_images(id, url, sort_order, variant_color), product_variants(id, color, size, sku, stock, price_override), product_category_links(product_categories(slug))'
++    )
+     .eq('id', id)
+     .single();
+ 
+   const { data: categories } = await supabase
+     .from('product_categories')
+-    .select('slug, name')
++    .select('slug, name, parent_slug')
+     .order('sort_order', { ascending: true });
+ 
+   if (!product) {
+@@ -30,6 +32,13 @@ export default async function AdminEditProductPage({ params }) {
+     );
+   }
+ 
++  // Semua slug kategori yang sudah ter-link ke produk ini lewat
++  // product_category_links, dipakai supaya checkbox kategori yang sudah
++  // dipilih sebelumnya tampil tercentang saat form edit dibuka.
++  const categorySlugs = (product.product_category_links || [])
++    .map((row) => row.product_categories?.slug)
++    .filter(Boolean);
++
+   return (
+     <section className="wrap admin-shell admin-shell--narrow">
+       <Link href="/admin/produk" className="admin-back">&larr; Kembali ke Produk</Link>
+@@ -41,7 +50,7 @@ export default async function AdminEditProductPage({ params }) {
+         </div>
+       </div>
+ 
+-      <ProductForm mode="edit" product={product} categories={categories || []} />
++      <ProductForm mode="edit" product={{ ...product, categorySlugs }} categories={categories || []} />
+       <ProductImages
+         productId={product.id}
+         images={product.product_images || []}
+diff --git a/app/admin/produk/baru/page.js b/app/admin/produk/baru/page.js
+index f782ef3..a60dd88 100644
+--- a/app/admin/produk/baru/page.js
++++ b/app/admin/produk/baru/page.js
+@@ -8,7 +8,7 @@ export default async function AdminNewProductPage() {
+   const supabase = getSupabaseAdmin();
+   const { data: categories } = await supabase
+     .from('product_categories')
+-    .select('slug, name')
++    .select('slug, name, parent_slug')
+     .order('sort_order', { ascending: true });
+ 
+   return (
+diff --git a/app/api/admin/categories/[id]/route.js b/app/api/admin/categories/[id]/route.js
+index 3c4cf38..d6a305b 100644
+--- a/app/api/admin/categories/[id]/route.js
++++ b/app/api/admin/categories/[id]/route.js
+@@ -8,16 +8,22 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ // cuma nama tampilannya.
+ export async function PATCH(req, { params }) {
+   const { id } = await params;
+-  const { name } = await req.json();
++  const { name, parent_slug: parentSlug } = await req.json();
+ 
+   if (!name?.trim()) {
+     return Response.json({ error: 'Nama kategori wajib diisi.' }, { status: 400 });
+   }
+ 
+   const supabase = getSupabaseAdmin();
++  const update = { name: name.trim() };
++  // parent_slug ikut diupdate hanya kalau dikirim eksplisit di body — supaya
++  // request lama yang cuma kirim {name} tidak sengaja menghapus grouping
++  // yang sudah diset sebelumnya.
++  if (parentSlug !== undefined) update.parent_slug = parentSlug || null;
++
+   const { data, error } = await supabase
+     .from('product_categories')
+-    .update({ name: name.trim() })
++    .update(update)
+     .eq('id', id)
+     .select()
+     .single();
+@@ -39,14 +45,14 @@ export async function DELETE(req, { params }) {
+     return Response.json({ error: 'Kategori tidak ditemukan.' }, { status: 404 });
+   }
+ 
+-  // Cegah hapus kategori yang masih ada produknya — kalau dihapus,
+-  // produk-produk itu jadi punya category yang "yatim" (tidak ada di
+-  // product_categories lagi) dan tidak akan muncul di dropdown admin mana
+-  // pun untuk dipindah kategorinya.
++  // Cegah hapus kategori yang masih ada produknya (dicek dari
++  // product_category_links, bukan cuma products.category lama) — kalau
++  // dihapus, produk-produk itu jadi kehilangan link ke kategori ini dan
++  // tidak akan muncul di dropdown admin mana pun untuk dipindah kategorinya.
+   const { count } = await supabase
+-    .from('products')
+-    .select('id', { count: 'exact', head: true })
+-    .eq('category', category.slug);
++    .from('product_category_links')
++    .select('product_id', { count: 'exact', head: true })
++    .eq('category_id', id);
+ 
+   if (count > 0) {
+     return Response.json(
+diff --git a/app/api/admin/categories/route.js b/app/api/admin/categories/route.js
+index 7c1e79f..904476c 100644
+--- a/app/api/admin/categories/route.js
++++ b/app/api/admin/categories/route.js
+@@ -12,27 +12,30 @@ export async function GET() {
+   const supabase = getSupabaseAdmin();
+   const { data: categories, error } = await supabase
+     .from('product_categories')
+-    .select('id, slug, name, sort_order')
++    .select('id, slug, name, sort_order, parent_slug')
+     .order('sort_order', { ascending: true });
+ 
+   if (error) return Response.json({ error: error.message }, { status: 500 });
+ 
+-  // Ikut kirim jumlah produk per kategori, supaya UI admin bisa cegah user
+-  // menghapus kategori yang masih dipakai produk (lihat DELETE di
+-  // [id]/route.js).
+-  const { data: counts } = await supabase.from('products').select('category');
++  // Ikut kirim jumlah produk per kategori (dari product_category_links,
++  // sumber kebenaran sejak produk bisa multi-kategori), supaya UI admin
++  // bisa cegah user menghapus kategori yang masih dipakai produk (lihat
++  // DELETE di [id]/route.js).
++  const { data: links } = await supabase
++    .from('product_category_links')
++    .select('category_id');
+   const countMap = {};
+-  (counts || []).forEach((p) => {
+-    countMap[p.category] = (countMap[p.category] || 0) + 1;
++  (links || []).forEach((l) => {
++    countMap[l.category_id] = (countMap[l.category_id] || 0) + 1;
+   });
+ 
+   return Response.json({
+-    categories: categories.map((c) => ({ ...c, productCount: countMap[c.slug] || 0 })),
++    categories: categories.map((c) => ({ ...c, productCount: countMap[c.id] || 0 })),
+   });
+ }
+ 
+ export async function POST(req) {
+-  const { name, slug: slugInput } = await req.json();
++  const { name, slug: slugInput, parent_slug: parentSlug } = await req.json();
+ 
+   if (!name?.trim()) {
+     return Response.json({ error: 'Nama kategori wajib diisi.' }, { status: 400 });
+@@ -50,7 +53,7 @@ export async function POST(req) {
+ 
+   const { data, error } = await supabase
+     .from('product_categories')
+-    .insert({ name: name.trim(), slug, sort_order: (count || 0) + 1 })
++    .insert({ name: name.trim(), slug, sort_order: (count || 0) + 1, parent_slug: parentSlug || null })
+     .select()
+     .single();
+ 
+diff --git a/app/api/admin/products/[id]/route.js b/app/api/admin/products/[id]/route.js
+index e94595e..906d7b9 100644
+--- a/app/api/admin/products/[id]/route.js
++++ b/app/api/admin/products/[id]/route.js
+@@ -1,6 +1,6 @@
+ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ 
+-const VALID_CATEGORIES = ['daily', 'sport', 'basic', 'custom'];
++const VALID_GENDERS = ['man', 'woman', 'kids', 'unisex'];
+ 
+ function slugify(str) {
+   return String(str || '')
+@@ -10,20 +10,32 @@ function slugify(str) {
+     .replace(/^-+|-+$/g, '');
+ }
+ 
++async function fetchValidCategories(supabase, slugs) {
++  if (!slugs?.length) return [];
++  const { data, error } = await supabase
++    .from('product_categories')
++    .select('id, slug')
++    .in('slug', slugs);
++  if (error) return [];
++  return data || [];
++}
++
+ export async function PATCH(req, { params }) {
+   const { id } = await params;
+   const body = await req.json().catch(() => ({}));
+ 
+   const name = (body.name || '').trim();
+-  const category = body.category;
++  const categorySlugs = Array.isArray(body.categories)
++    ? body.categories.filter(Boolean)
++    : body.category
++    ? [body.category]
++    : [];
++  const gender = body.gender || 'unisex';
+   const slug = slugify(body.slug || body.name);
+   const price = Number(body.price);
+   const comparePrice = body.compare_price === '' || body.compare_price == null ? null : Number(body.compare_price);
+ 
+   if (!name) return Response.json({ error: 'Nama produk wajib diisi.' }, { status: 400 });
+-  if (!VALID_CATEGORIES.includes(category)) {
+-    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
+-  }
+   if (!slug) return Response.json({ error: 'Slug wajib diisi.' }, { status: 400 });
+   if (!Number.isFinite(price) || price < 0) {
+     return Response.json({ error: 'Harga tidak valid.' }, { status: 400 });
+@@ -31,14 +43,24 @@ export async function PATCH(req, { params }) {
+   if (comparePrice != null && (!Number.isFinite(comparePrice) || comparePrice < 0)) {
+     return Response.json({ error: 'Harga coret tidak valid.' }, { status: 400 });
+   }
++  if (!VALID_GENDERS.includes(gender)) {
++    return Response.json({ error: 'Gender tidak valid.' }, { status: 400 });
++  }
+ 
+   const supabase = getSupabaseAdmin();
++
++  const matchedCategories = await fetchValidCategories(supabase, categorySlugs);
++  if (!matchedCategories.length) {
++    return Response.json({ error: 'Pilih minimal satu kategori yang valid.' }, { status: 400 });
++  }
++
+   const { error } = await supabase
+     .from('products')
+     .update({
+       name,
+       slug,
+-      category,
++      category: matchedCategories[0].slug, // kolom lama: kategori "utama"
++      gender,
+       description: body.description || null,
+       material_spec: body.material_spec || null,
+       care_instructions: body.care_instructions || null,
+@@ -53,6 +75,14 @@ export async function PATCH(req, { params }) {
+     return Response.json({ error: msg }, { status: 500 });
+   }
+ 
++  // Ganti seluruh set link kategori produk ini (hapus lama, insert yang baru
++  // dipilih di form) — lebih sederhana & tidak rawan sisa data dibanding
++  // diff insert/delete per-item.
++  await supabase.from('product_category_links').delete().eq('product_id', id);
++  await supabase
++    .from('product_category_links')
++    .insert(matchedCategories.map((c) => ({ product_id: id, category_id: c.id })));
++
+   return Response.json({ success: true, slug });
+ }
+ 
+diff --git a/app/api/admin/products/route.js b/app/api/admin/products/route.js
+index 32b098d..a44d948 100644
+--- a/app/api/admin/products/route.js
++++ b/app/api/admin/products/route.js
+@@ -1,6 +1,6 @@
+ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+ 
+-const VALID_CATEGORIES = ['daily', 'sport', 'basic', 'custom'];
++const VALID_GENDERS = ['man', 'woman', 'kids', 'unisex'];
+ 
+ function slugify(str) {
+   return String(str || '')
+@@ -10,18 +10,50 @@ function slugify(str) {
+     .replace(/^-+|-+$/g, '');
+ }
+ 
++// Kategori sekarang dikelola dari tabel product_categories (lihat
++// /api/admin/categories), bukan lagi daftar hardcoded — supaya kategori baru
++// yang ditambah admin (mis. "Badminton", "Running") langsung valid dipakai
++// di sini tanpa perlu ubah kode.
++async function fetchValidCategories(supabase, slugs) {
++  if (!slugs?.length) return [];
++  const { data, error } = await supabase
++    .from('product_categories')
++    .select('id, slug')
++    .in('slug', slugs);
++  if (error) return [];
++  return data || [];
++}
++
++// Simpan set kategori (bisa >1) untuk satu produk: hapus link lama, insert
++// yang baru. products.category (kolom lama) ikut diisi kategori pertama yang
++// dipilih, supaya breadcrumb/label lama yang masih baca kolom itu tetap benar.
++async function syncProductCategories(supabase, productId, categorySlugs) {
++  const matched = await fetchValidCategories(supabase, categorySlugs);
++  await supabase.from('product_category_links').delete().eq('product_id', productId);
++  if (matched.length) {
++    await supabase
++      .from('product_category_links')
++      .insert(matched.map((c) => ({ product_id: productId, category_id: c.id })));
++  }
++  return matched;
++}
++
+ export async function POST(req) {
+   const body = await req.json().catch(() => ({}));
+   const name = (body.name || '').trim();
+-  const category = body.category;
++  // Terima `categories` (array, dari form multi-select baru) atau `category`
++  // (string tunggal, untuk kompatibilitas kalau ada pemanggil lama).
++  const categorySlugs = Array.isArray(body.categories)
++    ? body.categories.filter(Boolean)
++    : body.category
++    ? [body.category]
++    : [];
++  const gender = body.gender || 'unisex';
+   const slug = slugify(body.slug || body.name);
+   const price = Number(body.price);
+   const comparePrice = body.compare_price === '' || body.compare_price == null ? null : Number(body.compare_price);
+ 
+   if (!name) return Response.json({ error: 'Nama produk wajib diisi.' }, { status: 400 });
+-  if (!VALID_CATEGORIES.includes(category)) {
+-    return Response.json({ error: 'Kategori tidak valid.' }, { status: 400 });
+-  }
+   if (!slug) return Response.json({ error: 'Slug wajib diisi (atau nama produk harus menghasilkan slug yang valid).' }, { status: 400 });
+   if (!Number.isFinite(price) || price < 0) {
+     return Response.json({ error: 'Harga tidak valid.' }, { status: 400 });
+@@ -29,14 +61,24 @@ export async function POST(req) {
+   if (comparePrice != null && (!Number.isFinite(comparePrice) || comparePrice < 0)) {
+     return Response.json({ error: 'Harga coret tidak valid.' }, { status: 400 });
+   }
++  if (!VALID_GENDERS.includes(gender)) {
++    return Response.json({ error: 'Gender tidak valid.' }, { status: 400 });
++  }
+ 
+   const supabase = getSupabaseAdmin();
++
++  const matchedCategories = await fetchValidCategories(supabase, categorySlugs);
++  if (!matchedCategories.length) {
++    return Response.json({ error: 'Pilih minimal satu kategori yang valid.' }, { status: 400 });
++  }
++
+   const { data, error } = await supabase
+     .from('products')
+     .insert({
+       name,
+       slug,
+-      category,
++      category: matchedCategories[0].slug, // kolom lama: kategori "utama"
++      gender,
+       description: body.description || null,
+       material_spec: body.material_spec || null,
+       care_instructions: body.care_instructions || null,
+@@ -52,5 +94,9 @@ export async function POST(req) {
+     return Response.json({ error: msg }, { status: 500 });
+   }
+ 
++  await supabase
++    .from('product_category_links')
++    .insert(matchedCategories.map((c) => ({ product_id: data.id, category_id: c.id })));
++
+   return Response.json({ success: true, id: data.id, slug: data.slug });
+ }
+diff --git a/app/etalase/page.js b/app/etalase/page.js
+index 08e9e17..aa42276 100644
+--- a/app/etalase/page.js
++++ b/app/etalase/page.js
+@@ -1,7 +1,7 @@
+ export const dynamic = 'force-dynamic';
+  
+ import Link from 'next/link';
+-import { getProductPage, getCategories } from '@/lib/products';
++import { getProductPage, getCategoryTree, GENDERS } from '@/lib/products';
+ import ProductGrid from '@/components/ProductGrid';
+ import Pagination from '@/components/Pagination';
+ import SortSelect from '@/components/SortSelect';
+@@ -11,16 +11,31 @@ import { titleCase } from '@/lib/format';
+ export const metadata = { title: 'Etalase | GUDARA' };
+  
+ const VALID_SORTS = ['newest', 'price-asc', 'price-desc'];
++const VALID_GENDERS = GENDERS.map((g) => g.value);
++ 
++// Bangun query string etalase, menjaga filter lain (gender/kategori/sort/q)
++// tetap ada saat salah satu filter pill diklik — supaya kombinasi gender +
++// kategori sekaligus bisa di-bookmark/di-share sebagai satu URL.
++function buildEtalaseHref(sp, overrides) {
++  const params = new URLSearchParams();
++  const merged = { kat: sp?.kat, gender: sp?.gender, q: sp?.q, sort: sp?.sort, ...overrides };
++  Object.entries(merged).forEach(([key, value]) => {
++    if (value) params.set(key, value);
++  });
++  const qs = params.toString();
++  return qs ? `/etalase?${qs}` : '/etalase';
++}
+  
+ export default async function EtalasePage({ searchParams }) {
+   const sp = await searchParams;
+   const kat = sp?.kat;
++  const gender = VALID_GENDERS.includes(sp?.gender) ? sp.gender : '';
+   const q = sp?.q?.trim() || '';
+   const sort = VALID_SORTS.includes(sp?.sort) ? sp.sort : 'newest';
+   const page = Math.max(1, parseInt(sp?.page, 10) || 1);
+-  const [{ items: products, total, totalPages }, categories] = await Promise.all([
+-    getProductPage(kat, page, 24, sort, q, { excludeCustom: true }),
+-    getCategories(),
++  const [{ items: products, total, totalPages }, categoryTree] = await Promise.all([
++    getProductPage(kat, page, 24, sort, q, { excludeCustom: true, gender }),
++    getCategoryTree(),
+   ]);
+   const title = q ? `Hasil untuk "${q}"` : kat ? titleCase(kat) : 'Semua Produk';
+  
+@@ -43,15 +58,45 @@ export default async function EtalasePage({ searchParams }) {
+       <h1 style={{ fontSize: 'clamp(32px,5vw,56px)', margin: '8px 0 24px' }}>{title}</h1>
+  
+       <div className="filter-row">
+-        <Link href="/etalase" className={`filter-pill${!kat && !q ? ' active' : ''}`}>Semua</Link>
+-        {categories
++        <Link href={buildEtalaseHref(sp, { kat: null, page: null })} className={`filter-pill${!kat && !q ? ' active' : ''}`}>Semua</Link>
++        {categoryTree
+           .filter((c) => c.slug !== 'custom')
+           .map((c) => (
+-            <Link key={c.slug} href={`/etalase?kat=${c.slug}`} className={`filter-pill${kat === c.slug ? ' active' : ''}`}>
+-              {c.name}
+-            </Link>
++            <span key={c.slug} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
++              <Link href={buildEtalaseHref(sp, { kat: c.slug, page: null })} className={`filter-pill${kat === c.slug ? ' active' : ''}`}>
++                {c.name}
++              </Link>
++              {/* Sub-kategori (mis. Badminton/Running/Sepak Bola di bawah
++                  "Sport Authentic") tampil sebagai pill lebih kecil menempel
++                  di sebelah induknya, bukan sejajar sebagai kategori utama —
++                  supaya jelas keduanya masih 1 grup "Sport Authentic". */}
++              {c.children.map((child) => (
++                <Link
++                  key={child.slug}
++                  href={buildEtalaseHref(sp, { kat: child.slug, page: null })}
++                  className={`filter-pill filter-pill--sub${kat === child.slug ? ' active' : ''}`}
++                >
++                  {child.name}
++                </Link>
++              ))}
++            </span>
+           ))}
+       </div>
++
++      <div className="filter-row" style={{ marginTop: 8 }}>
++        <Link href={buildEtalaseHref(sp, { gender: null, page: null })} className={`filter-pill${!gender ? ' active' : ''}`}>
++          Semua Gender
++        </Link>
++        {GENDERS.map((g) => (
++          <Link
++            key={g.value}
++            href={buildEtalaseHref(sp, { gender: g.value, page: null })}
++            className={`filter-pill${gender === g.value ? ' active' : ''}`}
++          >
++            {g.label}
++          </Link>
++        ))}
++      </div>
+  
+       <div className="etalase-toolbar">
+         <SearchBox current={q} />
+diff --git a/app/globals.css b/app/globals.css
+index e49ce3e..2f5b1c4 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -428,6 +428,9 @@ footer.site{background:var(--ink);color:rgba(255,255,255,.7);padding:64px 0 24px
+ }
+ .filter-pill:hover{border-color:var(--ink);color:var(--ink);}
+ .filter-pill.active{background:var(--ink);border-color:var(--ink);color:#fff;}
++/* Sub-kategori (mis. Badminton di bawah induk "Sport Authentic") — lebih
++   kecil & lebih tipis supaya jelas bukan kategori utama yang sejajar. */
++.filter-pill--sub{padding:6px 14px;font-size:11px;opacity:.85;}
+  
+ .etalase-toolbar{
+   display:flex;justify-content:space-between;align-items:center;
+diff --git a/components/CategoryManager.jsx b/components/CategoryManager.jsx
+index 7513f5b..c0a855c 100644
+--- a/components/CategoryManager.jsx
++++ b/components/CategoryManager.jsx
+@@ -17,8 +17,14 @@ export default function CategoryManager({ categories }) {
+   const [editingId, setEditingId] = useState(null);
+   const [editName, setEditName] = useState('');
+   const [newName, setNewName] = useState('');
++  const [newParentSlug, setNewParentSlug] = useState('');
+   const [busy, setBusy] = useState(false);
+   const [msg, setMsg] = useState(null); // { text, ok }
++  // Cuma kategori tanpa induk yang boleh jadi induk (tidak ada nested >2
++  // level) — sesuai kebutuhan sekarang: "Sport Authentic" (induk) menaungi
++  // "Badminton"/"Running"/"Sepak Bola" (anak).
++  const parentOptions = categories.filter((c) => !c.parent_slug);
++  const nameForSlug = (slug) => categories.find((c) => c.slug === slug)?.name || slug;
+ 
+   function startEdit(cat) {
+     setEditingId(cat.id);
+@@ -56,11 +62,12 @@ export default function CategoryManager({ categories }) {
+       const res = await fetch('/api/admin/categories', {
+         method: 'POST',
+         headers: { 'content-type': 'application/json' },
+-        body: JSON.stringify({ name: newName }),
++        body: JSON.stringify({ name: newName, parent_slug: newParentSlug || null }),
+       });
+       const data = await res.json();
+       if (!res.ok) throw new Error(data.error);
+       setNewName('');
++      setNewParentSlug('');
+       setMsg({ text: `Kategori "${data.category.name}" ditambahkan.`, ok: true });
+       router.refresh();
+     } catch (err) {
+@@ -108,6 +115,7 @@ export default function CategoryManager({ categories }) {
+                 <tr>
+                   <th>Nama</th>
+                   <th>Slug</th>
++                  <th>Induk</th>
+                   <th>Jumlah Produk</th>
+                   <th></th>
+                 </tr>
+@@ -123,6 +131,7 @@ export default function CategoryManager({ categories }) {
+                       )}
+                     </td>
+                     <td style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-soft)' }}>{c.slug}</td>
++                    <td style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{c.parent_slug ? nameForSlug(c.parent_slug) : '—'}</td>
+                     <td>{c.productCount}</td>
+                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                       {editingId === c.id ? (
+@@ -157,13 +166,23 @@ export default function CategoryManager({ categories }) {
+             </table>
+           </div>
+ 
+-          <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: 420 }}>
++          <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: 560, flexWrap: 'wrap' }}>
+             <input
+-              placeholder="Nama kategori baru (mis. Running Series)"
++              placeholder="Nama kategori baru (mis. Badminton)"
+               value={newName}
+               onChange={(e) => setNewName(e.target.value)}
+-              style={{ flex: 1 }}
++              style={{ flex: 1, minWidth: 180 }}
+             />
++            <select
++              value={newParentSlug}
++              onChange={(e) => setNewParentSlug(e.target.value)}
++              style={{ minWidth: 180 }}
++            >
++              <option value="">Tanpa induk (kategori utama)</option>
++              {parentOptions.map((p) => (
++                <option key={p.slug} value={p.slug}>Di bawah &quot;{p.name}&quot;</option>
++              ))}
++            </select>
+             <button type="submit" className="btn btn--dark" style={{ fontSize: 13 }} disabled={busy}>
+               + Tambah
+             </button>
+diff --git a/components/ProductForm.jsx b/components/ProductForm.jsx
+index 98a2de2..2a8e55a 100644
+--- a/components/ProductForm.jsx
++++ b/components/ProductForm.jsx
+@@ -11,15 +11,42 @@ function slugify(str) {
+     .replace(/^-+|-+$/g, '');
+ }
+ 
++const GENDER_OPTIONS = [
++  { value: 'unisex', label: 'Unisex' },
++  { value: 'man', label: 'Man' },
++  { value: 'woman', label: 'Woman' },
++  { value: 'kids', label: 'Kids' },
++];
++
+ export default function ProductForm({ mode, product, categories, onCreated, submitLabel }) {
+   const router = useRouter();
+   const isEdit = mode === 'edit';
+   const categoryOptions = categories?.length ? categories : [{ slug: product?.category, name: product?.category }];
++  // Kelompokkan kategori per induk (mis. "Sport Authentic" menaungi
++  // "Badminton"/"Running"/"Sepak Bola") supaya checkbox-nya tidak sejajar
++  // membingungkan — kategori tanpa induk tampil sebagai grup tersendiri.
++  const topLevel = categoryOptions.filter((c) => !c.parent_slug);
++  const groupedOptions = topLevel.map((parent) => ({
++    ...parent,
++    children: categoryOptions.filter((c) => c.parent_slug === parent.slug),
++  }));
+ 
+   const [name, setName] = useState(product?.name || '');
+   const [slug, setSlug] = useState(product?.slug || '');
+   const [slugTouched, setSlugTouched] = useState(isEdit);
+-  const [category, setCategory] = useState(product?.category || categoryOptions[0]?.slug || '');
++  // Produk lama cuma punya 1 category (kolom lama); product?.categorySlugs
++  // (kalau dikirim halaman edit) berisi semua slug yang sudah ter-link lewat
++  // product_category_links, dipakai supaya checkbox yang sudah tercentang
++  // sebelumnya tampil benar saat form dibuka.
++  const initialCategories = product?.categorySlugs?.length
++    ? product.categorySlugs
++    : product?.category
++    ? [product.category]
++    : categoryOptions[0]?.slug
++    ? [categoryOptions[0].slug]
++    : [];
++  const [selectedCategories, setSelectedCategories] = useState(initialCategories);
++  const [gender, setGender] = useState(product?.gender || 'unisex');
+   const [price, setPrice] = useState(product?.price ?? '');
+   const [comparePrice, setComparePrice] = useState(product?.compare_price ?? '');
+   const [description, setDescription] = useState(product?.description || '');
+@@ -37,15 +64,27 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
+     if (!slugTouched) setSlug(slugify(v));
+   }
+ 
++  function toggleCategory(catSlug) {
++    setSelectedCategories((prev) =>
++      prev.includes(catSlug) ? prev.filter((s) => s !== catSlug) : [...prev, catSlug]
++    );
++  }
++
+   async function handleSubmit(e) {
+     e.preventDefault();
++    if (!selectedCategories.length) {
++      setMsgOk(false);
++      setMsg('Pilih minimal satu kategori.');
++      return;
++    }
+     setLoading(true);
+     setMsg('');
+ 
+     const payload = {
+       name,
+       slug,
+-      category,
++      categories: selectedCategories,
++      gender,
+       price: Number(price),
+       compare_price: comparePrice === '' ? null : Number(comparePrice),
+       description,
+@@ -75,7 +114,7 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
+         // Dipakai oleh alur "Tambah Produk" satu halaman (ProductWizard) —
+         // lanjut ke langkah foto/varian di halaman yang sama, tanpa pindah
+         // halaman dulu seperti sebelumnya.
+-        onCreated({ id: data.id, slug: data.slug, name, category });
++        onCreated({ id: data.id, slug: data.slug, name, categories: selectedCategories });
+       } else {
+         router.push(`/admin/produk/${data.id}`);
+       }
+@@ -125,11 +164,42 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
+             required
+           />
+         </div>
++        <div className="field field--full">
++          <label>Kategori (bisa pilih lebih dari satu)</label>
++          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
++            {groupedOptions.map((group) => (
++              <div key={group.slug}>
++                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--body)', textTransform: 'none', fontSize: 14 }}>
++                  <input
++                    type="checkbox"
++                    checked={selectedCategories.includes(group.slug)}
++                    onChange={() => toggleCategory(group.slug)}
++                  />
++                  {group.name}
++                </label>
++                {group.children.length > 0 && (
++                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginLeft: 24, marginTop: 4 }}>
++                    {group.children.map((child) => (
++                      <label key={child.slug} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--body)', textTransform: 'none', fontSize: 13, color: 'var(--ink-soft)' }}>
++                        <input
++                          type="checkbox"
++                          checked={selectedCategories.includes(child.slug)}
++                          onChange={() => toggleCategory(child.slug)}
++                        />
++                        {child.name}
++                      </label>
++                    ))}
++                  </div>
++                )}
++              </div>
++            ))}
++          </div>
++        </div>
+         <div className="field">
+-          <label>Kategori</label>
+-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+-            {categoryOptions.map((c) => (
+-              <option key={c.slug} value={c.slug}>{c.name}</option>
++          <label>Gender</label>
++          <select value={gender} onChange={(e) => setGender(e.target.value)}>
++            {GENDER_OPTIONS.map((g) => (
++              <option key={g.value} value={g.value}>{g.label}</option>
+             ))}
+           </select>
+         </div>
+diff --git a/lib/products.js b/lib/products.js
+index 749c3be..8efb319 100644
+--- a/lib/products.js
++++ b/lib/products.js
+@@ -96,6 +96,7 @@ function normalizeCard(p) {
+     id: p.id,
+     slug: p.slug,
+     kat: p.category,
++    gender: p.gender || 'unisex',
+     name: p.name,
+     price: p.price,
+     old: p.compare_price,
+@@ -114,7 +115,7 @@ export async function getCategories() {
+   const supabase = getSupabase();
+   const { data, error } = await supabase
+     .from('product_categories')
+-    .select('slug, name')
++    .select('slug, name, parent_slug')
+     .order('sort_order', { ascending: true });
+   if (error) {
+     console.error('getCategories failed:', error.message);
+@@ -123,15 +124,65 @@ export async function getCategories() {
+   return data || [];
+ }
+ 
++// Sama seperti getCategories(), tapi dikelompokkan induk → anak — dipakai
++// filter di etalase supaya "Sport Authentic" tampil sebagai grup berisi
++// "Badminton"/"Running"/"Sepak Bola", bukan pill sejajar yang membingungkan.
++// Kategori tanpa anak (mis. 'daily', 'basic', 'custom') tetap tampil sebagai
++// pill tunggal seperti sebelumnya (children: []).
++export async function getCategoryTree() {
++  const flat = await getCategories();
++  const bySlug = Object.fromEntries(flat.map((c) => [c.slug, { ...c, children: [] }]));
++  const roots = [];
++  flat.forEach((c) => {
++    if (c.parent_slug && bySlug[c.parent_slug]) {
++      bySlug[c.parent_slug].children.push(bySlug[c.slug]);
++    } else if (!c.parent_slug) {
++      roots.push(bySlug[c.slug]);
++    }
++  });
++  return roots;
++}
++
++export const GENDERS = [
++  { value: 'man', label: 'Man' },
++  { value: 'woman', label: 'Woman' },
++  { value: 'kids', label: 'Kids' },
++];
++
++// Satu produk sekarang bisa terdaftar di >1 kategori lewat
++// product_category_links (mis. jersey yang sama muncul di "Badminton" DAN
++// "Running"). products.category (kolom lama) dipertahankan hanya sebagai
++// kategori "utama" untuk breadcrumb/label — sumber kebenaran untuk filter
++// adalah junction table ini.
++async function productIdsForCategory(supabase, kat) {
++  if (!kat) return null;
++  const { data, error } = await supabase
++    .from('product_category_links')
++    .select('product_id, product_categories!inner(slug)')
++    .eq('product_categories.slug', kat);
++  if (error) {
++    console.error('productIdsForCategory failed:', error.message);
++    return [];
++  }
++  return (data || []).map((row) => row.product_id);
++}
++
+ export async function getProductRow(kat, limit = 8, sort = 'newest', search = '', opts = {}) {
+   const supabase = getSupabase();
++  const categoryProductIds = await productIdsForCategory(supabase, kat);
++  // Kategori diminta tapi tidak ada satu produk pun yang link ke situ —
++  // jangan lanjut query (kalau dilanjut tanpa filter, .in('id', []) akan
++  // balikin SEMUA produk, bukan kosong).
++  if (kat && categoryProductIds && categoryProductIds.length === 0) return [];
++
+   let query = supabase
+     .from('products')
+-    .select('id, slug, name, category, price, compare_price, created_at, product_images(url, sort_order)')
++    .select('id, slug, name, category, gender, price, compare_price, created_at, product_images(url, sort_order)')
+     .eq('is_active', true)
+     .limit(limit);
+- 
+-  if (kat) query = query.eq('category', kat);
++
++  if (categoryProductIds) query = query.in('id', categoryProductIds);
++  if (opts.gender) query = query.eq('gender', opts.gender);
+   if (search && search.trim()) query = query.ilike('name', `%${search.trim()}%`);
+   // 'custom' kits punya alur belanja sendiri (konsultasi desain via admin,
+   // minimum order per desain) — jadi jangan ikut nyampur di feed umum
+@@ -171,14 +222,20 @@ export async function getProductPage(kat, page = 1, pageSize = 24, sort = 'newes
+   const from = (safePage - 1) * pageSize;
+   const to = from + pageSize - 1;
+ 
++  const categoryProductIds = await productIdsForCategory(supabase, kat);
++  if (kat && categoryProductIds && categoryProductIds.length === 0) {
++    return { items: [], total: 0, page: safePage, pageSize, totalPages: 1 };
++  }
++
+   let query = supabase
+     .from('products')
+-    .select('id, slug, name, category, price, compare_price, created_at, product_images(url, sort_order)', {
++    .select('id, slug, name, category, gender, price, compare_price, created_at, product_images(url, sort_order)', {
+       count: 'exact',
+     })
+     .eq('is_active', true);
+ 
+-  if (kat) query = query.eq('category', kat);
++  if (categoryProductIds) query = query.in('id', categoryProductIds);
++  if (opts.gender) query = query.eq('gender', opts.gender);
+   if (search && search.trim()) query = query.ilike('name', `%${search.trim()}%`);
+   if (!kat && opts.excludeCustom) query = query.neq('category', 'custom');
+ 
+@@ -223,7 +280,7 @@ export async function getProductBySlug(slug) {
+   const { data, error } = await supabase
+     .from('products')
+     .select(
+-      'id, slug, name, category, description, material_spec, care_instructions, price, compare_price, product_images(url, sort_order, variant_color), product_variants(id, color, size, stock)'
++      'id, slug, name, category, gender, description, material_spec, care_instructions, price, compare_price, product_images(url, sort_order, variant_color), product_variants(id, color, size, stock), product_category_links(product_categories(slug, name))'
+     )
+     .eq('slug', slug)
+     .eq('is_active', true)
+@@ -233,6 +290,12 @@ export async function getProductBySlug(slug) {
+     console.error('getProductBySlug failed:', error.message);
+     return null;
+   }
++
++  // Semua kategori/slug yang di-link ke produk ini (bisa lebih dari satu,
++  // mis. jersey yang sama muncul di "Badminton" dan "Running").
++  const categories = (data.product_category_links || [])
++    .map((row) => row.product_categories)
++    .filter(Boolean);
+  
+   const allImages = (data.product_images || [])
+     .filter((img) => isValidImageUrl(img.url))
+@@ -281,6 +344,8 @@ export async function getProductBySlug(slug) {
+     id: data.id,
+     slug: data.slug,
+     kat: data.category,
++    gender: data.gender || 'unisex',
++    categories,
+     name: data.name,
+     description: data.description || null,
+     materialSpec: data.material_spec,
+diff --git a/supabase/add-multi-category-and-gender.sql b/supabase/add-multi-category-and-gender.sql
+new file mode 100644
+index 0000000..1cf409c
+--- /dev/null
++++ b/supabase/add-multi-category-and-gender.sql
+@@ -0,0 +1,61 @@
++-- =====================================================
++-- GUDARA — Multi-kategori per produk + filter gender
++-- Jalankan ini di: Supabase Dashboard → SQL Editor → New Query
++-- (setelah product-categories.sql, sebelum ini dipakai kode)
++-- =====================================================
++--
++-- Sebelum ini: products.category cuma teks tunggal ('daily'|'sport'|'basic'|
++-- 'custom'), jadi satu produk cuma bisa masuk 1 kategori. product_categories
++-- (dari product-categories.sql) cuma daftar master flat, belum ada relasi
++-- many-to-many ke produk dan belum ada grouping induk/anak.
++--
++-- Migrasi ini ADDITIVE — products.category TIDAK dihapus/diubah, supaya kode
++-- lama yang masih baca kolom itu tetap jalan selama masa transisi.
++
++-- ---------- 1. Grouping: kategori bisa punya induk ----------
++-- Contoh: "Sport Authentic" (induk) menaungi "Badminton", "Running",
++-- "Sepak Bola" (anak). Kategori tanpa induk (parent_slug null) dianggap
++-- kategori level atas seperti sebelumnya ('daily', 'sport', 'basic', 'custom').
++alter table product_categories
++  add column if not exists parent_slug text references product_categories(slug);
++
++-- ---------- 2. Gender ----------
++alter table products
++  add column if not exists gender text check (gender in ('man', 'woman', 'kids', 'unisex'))
++  default 'unisex';
++
++-- ---------- 3. Relasi many-to-many produk <-> kategori ----------
++create table if not exists product_category_links (
++  product_id  uuid not null references products(id) on delete cascade,
++  category_id uuid not null references product_categories(id) on delete cascade,
++  primary key (product_id, category_id)
++);
++
++create index if not exists idx_category_links_category on product_category_links(category_id);
++
++alter table product_category_links enable row level security;
++
++create policy "anyone can read category links"
++  on product_category_links for select
++  to anon
++  using (true);
++
++-- Tidak ada policy insert/update/delete untuk anon — perubahan link kategori
++-- cuma lewat /api/admin/products (service role), sama seperti products lain.
++
++-- ---------- 4. Migrasi data lama ----------
++-- Setiap produk yang sudah ada otomatis dapat 1 link sesuai category-nya
++-- sekarang, supaya tidak ada produk yang "hilang" dari filter kategori
++-- setelah frontend pindah ke junction table.
++insert into product_category_links (product_id, category_id)
++select p.id, c.id
++from products p
++join product_categories c on c.slug = p.category
++on conflict do nothing;
++
++-- ---------- 5. Seed sub-kategori "Sport Authentic" ----------
++insert into product_categories (slug, name, parent_slug, sort_order) values
++  ('badminton', 'Badminton', 'sport', 21),
++  ('running', 'Running', 'sport', 22),
++  ('sepak-bola', 'Sepak Bola', 'sport', 23)
++on conflict (slug) do nothing;
