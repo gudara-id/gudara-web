@@ -22,3 +22,6 @@ npm-debug.log*
 
 # typescript
 *.tsbuildinfo
+ 
+# leftover AI-session patch files - never commit these 
+*.patch 
