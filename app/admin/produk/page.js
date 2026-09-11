@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { formatRp, titleCase } from '@/lib/format';
 import AdminLogoutButton from '@/components/AdminLogoutButton';
 import AdminNav from '@/components/AdminNav';
 import CategoryManager from '@/components/CategoryManager';
+import AdminProductsTable from '@/components/AdminProductsTable';
 
 const IMAGE_EXTENSION_RE = /\.(jpe?g|png|webp|gif|avif)(\?.*)?$/i;
 
@@ -41,6 +41,21 @@ export default async function AdminProductsPage({ searchParams }) {
   if (filter !== 'all') query = query.eq('category', filter);
 
   const { data: products, error } = await query;
+
+  // Komponen tabel (client component, karena butuh state buat checkbox
+  // terpilih + fetch ke endpoint bulk) cuma butuh field yang sudah "matang" —
+  // thumbnail & total stok dihitung di sini (server) supaya logikanya tetap
+  // satu tempat, sama seperti sebelum di-refactor.
+  const tableRows = (products || []).map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    category: p.category,
+    price: p.price,
+    is_active: p.is_active,
+    thumb: firstThumb(p.product_images),
+    totalStock: (p.product_variants || []).reduce((sum, v) => sum + (v.stock || 0), 0),
+  }));
 
   return (
     <section className="wrap admin-shell">
@@ -80,54 +95,7 @@ export default async function AdminProductsPage({ searchParams }) {
 
       {error && <p style={{ color: '#C6302B', marginBottom: 16 }}>Gagal memuat data: {error.message}</p>}
 
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Foto</th>
-              <th>Nama</th>
-              <th>Kategori</th>
-              <th>Harga</th>
-              <th>Stok</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(products || []).map((p) => {
-              const thumb = firstThumb(p.product_images);
-              const totalStock = (p.product_variants || []).reduce((sum, v) => sum + (v.stock || 0), 0);
-              return (
-                <tr key={p.id}>
-                  <td>
-                    {thumb ? (
-                      <img src={thumb} alt="" className="admin-thumb" />
-                    ) : (
-                      <div className="admin-thumb" />
-                    )}
-                  </td>
-                  <td>
-                    <Link href={`/admin/produk/${p.id}`}>{p.name}</Link>
-                  </td>
-                  <td>{categoryNameMap[p.category] || titleCase(p.category)}</td>
-                  <td>{formatRp(p.price)}</td>
-                  <td>{totalStock}</td>
-                  <td>
-                    <span className="admin-status">
-                      <span className="admin-status__dot" style={{ background: p.is_active ? '#16A34A' : '#9CA3AF' }} />
-                      {p.is_active ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-            {products?.length === 0 && (
-              <tr>
-                <td colSpan={6} className="admin-empty">Belum ada produk pada kategori ini.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AdminProductsTable products={tableRows} categoryNameMap={categoryNameMap} categories={categories} />
     </section>
   );
 }
