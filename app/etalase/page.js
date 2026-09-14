@@ -8,7 +8,11 @@ import SortSelect from '@/components/SortSelect';
 import SearchBox from '@/components/SearchBox';
 import { titleCase } from '@/lib/format';
  
-export const metadata = { title: 'Etalase | GUDARA' };
+export const metadata = {
+  title: 'Etalase | Jersey & Sportswear GUDARA',
+  description:
+    'Belanja jersey olahraga, kaos dry-fit, dan sportswear GUDARA — koleksi Daily & Casual, Sport Authentic, dan Basic. Kirim ke seluruh Indonesia.',
+};
  
 const VALID_SORTS = ['newest', 'price-asc', 'price-desc'];
 const VALID_GENDERS = GENDERS.map((g) => g.value);

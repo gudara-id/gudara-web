@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { getJournalPosts, journalCategoryLabel } from '@/lib/journal';
 import JournalCard from '@/components/JournalCard';
 
-export const metadata = { title: 'Jurnal | GUDARA' };
+export const metadata = {
+  title: 'Jurnal | Berita & Cerita GUDARA',
+  description:
+    'Kabar terbaru dari GUDARA — peluncuran koleksi, event, dan cerita di balik custom jersey untuk tim dan komunitas.',
+};
 
 export default async function JurnalPage({ searchParams }) {
   const sp = await searchParams;

@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { getProductRow } from '@/lib/products';
 import ProductGrid from '@/components/ProductGrid';
  
-export const metadata = { title: 'Custom Kits | GUDARA' };
+export const metadata = {
+  title: 'Custom Jersey & Kits Tim | GUDARA',
+  description:
+    'Bikin custom jersey tim sesuai desain dan warna sendiri — bahan dry-fit premium, cocok untuk tim futsal, sepak bola, badminton, dan komunitas olahraga lainnya.',
+};
  
 export default async function CustomPage() {
   // Produk yang bisa di-custom pelanggan (jersey, kaos tim, dll) — sama
