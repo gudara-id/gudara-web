@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
  
 import Link from 'next/link';
-import { getProductRow } from '@/lib/products';
+import { getProductRow, getNewArrivals, getBestsellers } from '@/lib/products';
 import { getJournalPosts } from '@/lib/journal';
 import { getActiveHero } from '@/lib/hero';
 import ProductGrid from '@/components/ProductGrid';
@@ -11,11 +11,13 @@ export default async function HomePage() {
   // Flat catalog feed — no category param means all categories mixed together,
   // shown as a single dense grid right below the hero (reference-site pattern:
   // no "Kategori" intermediary, straight into the product wall).
-  const [allProducts, rowDaily, rowSport, rowBasic, journalPosts, hero] = await Promise.all([
+  const [allProducts, rowDaily, rowSport, rowBasic, newArrivals, bestsellers, journalPosts, hero] = await Promise.all([
     getProductRow(null, 24, 'newest', '', { excludeCustom: true }),
     getProductRow('daily', 4),
     getProductRow('sport', 4),
     getProductRow('basic', 4),
+    getNewArrivals(8),
+    getBestsellers(8),
     getJournalPosts(null, 3),
     getActiveHero(),
   ]);
@@ -49,7 +51,42 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
- 
+
+      {/* NEW ARRIVALS — produk yang genuinely baru (lihat getNewArrivals di
+          lib/products.js), bukan cuma alias ke "Semua Produk" di bawah. */}
+      {newArrivals.length > 0 && (
+        <section className="section section--tight">
+          <div className="wrap">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Baru Rilis</span>
+                <h2>New Arrivals</h2>
+              </div>
+              <Link className="see-all" href="/baru">Lihat Semua &rarr;</Link>
+            </div>
+            <ProductGrid products={newArrivals} />
+          </div>
+        </section>
+      )}
+
+      {/* BESTSELLERS — hanya tampil kalau sudah ada produk yang ditandai
+          admin lewat /admin/produk (is_bestseller), supaya homepage tidak
+          menampilkan section kosong sebelum kurasinya diisi. */}
+      {bestsellers.length > 0 && (
+        <section className="section section--tight">
+          <div className="wrap">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Paling Laris</span>
+                <h2>Bestsellers</h2>
+              </div>
+              <Link className="see-all" href="/bestseller">Lihat Semua &rarr;</Link>
+            </div>
+            <ProductGrid products={bestsellers} />
+          </div>
+        </section>
+      )}
+
       {/* ALL PRODUCTS — flat, uncategorized, dense grid */}
       <section className="section section--tight">
         <div className="wrap">
