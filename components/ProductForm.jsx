@@ -53,6 +53,7 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
   const [materialSpec, setMaterialSpec] = useState(product?.material_spec || '');
   const [careInstructions, setCareInstructions] = useState(product?.care_instructions || '');
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
+  const [isBestseller, setIsBestseller] = useState(product?.is_bestseller ?? false);
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -91,6 +92,7 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
       material_spec: materialSpec,
       care_instructions: careInstructions,
       is_active: isActive,
+      is_bestseller: isBestseller,
     };
 
     try {
@@ -212,6 +214,17 @@ export default function ProductForm({ mode, product, categories, onCreated, subm
           />
           <label htmlFor="is_active" style={{ textTransform: 'none', fontFamily: 'var(--body)', fontSize: 14, color: 'var(--ink)' }}>
             Aktif (tampil di toko)
+          </label>
+        </div>
+        <div className="field field--checkbox" style={{ alignSelf: 'end', marginBottom: 16 }}>
+          <input
+            type="checkbox"
+            id="is_bestseller"
+            checked={isBestseller}
+            onChange={(e) => setIsBestseller(e.target.checked)}
+          />
+          <label htmlFor="is_bestseller" style={{ textTransform: 'none', fontFamily: 'var(--body)', fontSize: 14, color: 'var(--ink)' }}>
+            Tandai sebagai Bestseller (tampil di halaman /bestseller)
           </label>
         </div>
         <div className="field">

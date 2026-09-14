@@ -7,7 +7,18 @@ import { SITE_URL } from '@/lib/site';
 export default async function sitemap() {
   const supabase = getSupabase();
 
-  const staticRoutes = ['', '/etalase', '/custom', '/tentang', '/jurnal', '/lacak'].map((path) => ({
+  const staticRoutes = [
+    '',
+    '/etalase',
+    '/custom',
+    '/tentang',
+    '/jurnal',
+    '/lacak',
+    '/baru',
+    '/bestseller',
+    '/panduan-ukuran',
+    '/pengembalian',
+  ].map((path) => ({
     url: `${SITE_URL}${path}`,
     lastModified: new Date(),
   }));

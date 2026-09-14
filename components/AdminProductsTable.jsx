@@ -59,6 +59,28 @@ export default function AdminProductsTable({ products, categoryNameMap, categori
     }
   }
 
+  async function toggleBestseller(id, next) {
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/admin/products/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_bestseller', ids: [id], is_bestseller: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(data.error || 'Gagal menandai bestseller.');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMsg('Gagal menghubungi server. Cek koneksi lalu coba lagi.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handleBulkDelete() {
     const count = selected.size;
     if (!count) return;
@@ -100,6 +122,24 @@ export default function AdminProductsTable({ products, categoryNameMap, categori
               onClick={() => runBulk('set_active', { is_active: false })}
             >
               Nonaktifkan
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline"
+              style={{ fontSize: 12, padding: '6px 12px', color: 'var(--ink)', borderColor: 'var(--ink)' }}
+              disabled={busy}
+              onClick={() => runBulk('set_bestseller', { is_bestseller: true })}
+            >
+              Tandai Bestseller
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline"
+              style={{ fontSize: 12, padding: '6px 12px', color: 'var(--ink)', borderColor: 'var(--ink)' }}
+              disabled={busy}
+              onClick={() => runBulk('set_bestseller', { is_bestseller: false })}
+            >
+              Batal Bestseller
             </button>
             <select
               value={bulkCategory}
@@ -167,6 +207,7 @@ export default function AdminProductsTable({ products, categoryNameMap, categori
               <th>Harga</th>
               <th>Stok</th>
               <th>Status</th>
+              <th>Bestseller</th>
             </tr>
           </thead>
           <tbody>
@@ -199,11 +240,28 @@ export default function AdminProductsTable({ products, categoryNameMap, categori
                     {p.is_active ? 'Aktif' : 'Nonaktif'}
                   </span>
                 </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      color: p.is_bestseller ? '#fff' : 'var(--ink)',
+                      background: p.is_bestseller ? 'var(--ink)' : 'transparent',
+                      borderColor: 'var(--ink)',
+                    }}
+                    disabled={busy}
+                    onClick={() => toggleBestseller(p.id, !p.is_bestseller)}
+                  >
+                    {p.is_bestseller ? '★ Bestseller' : '☆ Tandai'}
+                  </button>
+                </td>
               </tr>
             ))}
             {products.length === 0 && (
               <tr>
-                <td colSpan={7} className="admin-empty">
+                <td colSpan={8} className="admin-empty">
                   Belum ada produk pada kategori ini.
                 </td>
               </tr>

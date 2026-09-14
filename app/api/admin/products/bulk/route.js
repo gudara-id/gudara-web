@@ -16,10 +16,12 @@ function storagePathFromUrl(url) {
 
 // Satu endpoint untuk semua aksi massal (dibedakan lewat `action`) supaya
 // tombol-tombol di toolbar bulk-select cukup manggil satu route yang sama:
-// - delete       : hapus produk + foto di storage sekaligus untuk semua id
-// - set_active   : aktif/nonaktifkan banyak produk sekaligus
-// - set_category : pindahkan banyak produk ke satu kategori sekaligus
-//                  (replace kolom `category` lama + product_category_links)
+// - delete         : hapus produk + foto di storage sekaligus untuk semua id
+// - set_active     : aktif/nonaktifkan banyak produk sekaligus
+// - set_bestseller : tandai/batal tandai banyak produk sebagai bestseller
+//                    sekaligus (lihat /bestseller & lib/products.js)
+// - set_category   : pindahkan banyak produk ke satu kategori sekaligus
+//                    (replace kolom `category` lama + product_category_links)
 export async function POST(req) {
   const body = await req.json().catch(() => ({}));
   const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : [];
@@ -53,6 +55,15 @@ export async function POST(req) {
     const { error } = await supabase
       .from('products')
       .update({ is_active: body.is_active !== false })
+      .in('id', ids);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ success: true, updated: ids.length });
+  }
+
+  if (action === 'set_bestseller') {
+    const { error } = await supabase
+      .from('products')
+      .update({ is_bestseller: body.is_bestseller === true })
       .in('id', ids);
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ success: true, updated: ids.length });

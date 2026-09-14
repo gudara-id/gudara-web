@@ -100,8 +100,8 @@ export default function Header() {
             </div>
             <div className="mega-col">
               <h4>Sorotan</h4>
-              <Link href="/etalase">New Arrivals</Link>
-              <Link href="/etalase">Bestsellers</Link>
+              <Link href="/baru">New Arrivals</Link>
+              <Link href="/bestseller">Bestsellers</Link>
               <Link href="/custom">Custom Kits</Link>
             </div>
           </div>

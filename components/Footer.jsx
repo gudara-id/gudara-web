@@ -21,8 +21,8 @@ export default function Footer() {
           <div>
             <h4>Bantuan</h4>
             <Link href="/lacak">Lacak Pesanan</Link>
-            <a href="#">Pengembalian</a>
-            <a href="#">Panduan Ukuran</a>
+            <Link href="/pengembalian">Pengembalian</Link>
+            <Link href="/panduan-ukuran">Panduan Ukuran</Link>
             <a href="https://wa.me/628131648947">Hubungi Kami</a>
           </div>
           <div>

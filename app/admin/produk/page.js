@@ -35,7 +35,7 @@ export default async function AdminProductsPage({ searchParams }) {
 
   let query = supabase
     .from('products')
-    .select('id, slug, name, category, price, compare_price, is_active, created_at, product_images(url, sort_order), product_variants(stock)')
+    .select('id, slug, name, category, price, compare_price, is_active, is_bestseller, created_at, product_images(url, sort_order), product_variants(stock)')
     .order('created_at', { ascending: false });
 
   if (filter !== 'all') query = query.eq('category', filter);
@@ -53,6 +53,7 @@ export default async function AdminProductsPage({ searchParams }) {
     category: p.category,
     price: p.price,
     is_active: p.is_active,
+    is_bestseller: p.is_bestseller,
     thumb: firstThumb(p.product_images),
     totalStock: (p.product_variants || []).reduce((sum, v) => sum + (v.stock || 0), 0),
   }));

@@ -85,6 +85,7 @@ export async function POST(req) {
       price,
       compare_price: comparePrice,
       is_active: body.is_active !== false,
+      is_bestseller: body.is_bestseller === true,
     })
     .select('id, slug')
     .single();
