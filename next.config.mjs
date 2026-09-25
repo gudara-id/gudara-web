@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Build hasil minimal (server + node_modules yang dibutuhkan saja) supaya
+  // gampang dijalankan di VPS sendiri tanpa Vercel.
+  output: 'standalone',
   images: {
     // Foto produk disimpan di Supabase Storage (bucket public) dan diambil
     // langsung dari URL publiknya (lihat lib/products.js) — pola hostname-nya

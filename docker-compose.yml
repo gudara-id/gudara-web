@@ -1,0 +1,11 @@
+services:
+  gudara-web:
+    build: .
+    container_name: gudara-web
+    restart: unless-stopped
+    # Hanya expose ke localhost VPS — akses publik lewat Nginx reverse proxy.
+    # Port kiri (20129) sengaja beda dari 9router (20128) biar tidak bentrok.
+    ports:
+      - "127.0.0.1:20129:3000"
+    env_file:
+      - .env.production
