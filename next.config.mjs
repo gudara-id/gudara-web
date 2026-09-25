@@ -15,6 +15,10 @@ const nextConfig = {
     // beberapa MB) tiap kali, cukup versi yang sudah dikecilkan sesuai layar.
     deviceSizes: [360, 480, 640, 768, 1024, 1280, 1600],
     imageSizes: [76, 128, 256, 384],
+    // Dimatikan sementara karena kuota Image Transformation Vercel habis
+    // (menyebabkan deployment di-pause). Foto diambil apa adanya dari
+    // Supabase tanpa resize/convert oleh Vercel, jadi tidak kena limit lagi.
+    unoptimized: true,
   },
 };
 
