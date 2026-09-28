@@ -1,5 +1,5 @@
 node_modules
 .next
 .git
-.env*
-!.env.production.example
+.env.local
+.env.development*
