@@ -1,4 +1,5 @@
 // app/api/checkout/route.js
+import { CHECKOUT_ENABLED } from '@/lib/checkout';
 import midtransClient from 'midtrans-client';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getShippingRates } from '@/lib/biteship';
@@ -11,6 +12,12 @@ function getSnapClient() {
 }
 
 export async function POST(req) {
+  if (!CHECKOUT_ENABLED) {
+    return Response.json(
+      { error: 'Checkout online sedang dinonaktifkan. Silakan pesan via WhatsApp.' },
+      { status: 503 }
+    );
+  }
   try {
     const supabase = getSupabaseAdmin();
     const snap = getSnapClient();

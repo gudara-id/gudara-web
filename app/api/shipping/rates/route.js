@@ -1,8 +1,15 @@
 // app/api/shipping/rates/route.js
+import { CHECKOUT_ENABLED } from '@/lib/checkout';
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getShippingRates } from "@/lib/biteship";
 
 export async function POST(request) {
+  if (!CHECKOUT_ENABLED) {
+    return Response.json(
+      { error: 'Checkout online sedang dinonaktifkan. Silakan pesan via WhatsApp.' },
+      { status: 503 }
+    );
+  }
   try {
     const supabase = getSupabaseAdmin();
     const { destinationPostalCode, items } = await request.json();

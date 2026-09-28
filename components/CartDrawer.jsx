@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
 import { formatRp } from '@/lib/format';
+import { CHECKOUT_ENABLED, buildWhatsAppOrderUrl } from '@/lib/checkout';
 
 export default function CartDrawer() {
   const { cart, cartTotal, drawerOpen, closeDrawer, updateQty, removeLine } = useCart();
@@ -68,9 +69,21 @@ export default function CartDrawer() {
             <span>Subtotal</span>
             <span>{formatRp(cartTotal)}</span>
           </div>
-          <Link href="/checkout" className="btn btn--dark" style={{ width: '100%', justifyContent: 'center' }} onClick={closeDrawer}>
-            Checkout
-          </Link>
+          {CHECKOUT_ENABLED ? (
+            <Link href="/checkout" className="btn btn--dark" style={{ width: '100%', justifyContent: 'center' }} onClick={closeDrawer}>
+              Checkout
+            </Link>
+          ) : (
+            <a
+              href={buildWhatsAppOrderUrl(cart, cartTotal)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn--dark"
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              Pesan via WhatsApp
+            </a>
+          )}
         </div>
       </aside>
     </>
